@@ -41,7 +41,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   onClose,
   onEnterLobby,
 }) => {
-  const { language, username } = usePlayerStore();
+  const { language, username, avatar } = usePlayerStore();
   const { createRoom } = useRoomStore();
 
   // Settings State
@@ -73,7 +73,10 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       onlyCustomWords,
     };
 
-    const newRoom = createRoom(settings);
+    const newRoom = createRoom(settings, {
+      username: username.trim() || 'Host',
+      avatar,
+    });
     setCreatedRoom(newRoom);
   };
 

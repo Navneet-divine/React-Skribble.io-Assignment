@@ -1,3 +1,5 @@
+import { type AvatarConfig } from './game';
+
 export interface RoomSettings {
   rounds: number;           // Number of rounds (2 to 10, default: 3)
   drawTime: number;         // Turn duration in seconds (30s to 120s, default: 80s)
@@ -5,6 +7,15 @@ export interface RoomSettings {
   language: string;         // Word dictionary country code (e.g., 'us', 'gb', 'de')
   customWords: string[];    // Custom words input by host
   onlyCustomWords: boolean; // Whether to exclusively use custom words
+}
+
+export interface LobbyPlayer {
+  id: string;
+  username: string;
+  avatar: AvatarConfig;
+  isHost: boolean;
+  isReady: boolean;
+  joinedAt: number;
 }
 
 export interface RoomInfo {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, PlusCircle, User, AlertCircle, X } from 'lucide-react';
+import { Play, PlusCircle, User, AlertCircle, X, LogIn } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { AvatarPicker } from './AvatarPicker';
 import { CountrySelect } from './CountrySelect';
@@ -7,11 +7,13 @@ import { CountrySelect } from './CountrySelect';
 interface HomeCardProps {
   onPlayPublic?: () => void;
   onCreatePrivateRoom?: () => void;
+  onOpenJoinRoom?: () => void;
 }
 
 export const HomeCard: React.FC<HomeCardProps> = ({
   onPlayPublic,
   onCreatePrivateRoom,
+  onOpenJoinRoom,
 }) => {
   const { username, setUsername } = usePlayerStore();
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +126,19 @@ export const HomeCard: React.FC<HomeCardProps> = ({
             <PlusCircle className="w-5 h-5" />
             <span>Create Private Room</span>
           </button>
+
+          {/* Join with Room Code */}
+          {onOpenJoinRoom && (
+            <button
+              id="join-code-button"
+              type="button"
+              onClick={onOpenJoinRoom}
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700/60 transition-colors cursor-pointer"
+            >
+              <LogIn className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Join with Room Code</span>
+            </button>
+          )}
         </div>
       </form>
     </div>

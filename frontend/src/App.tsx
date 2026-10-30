@@ -5,12 +5,44 @@ import { HowToPlay } from './components/HowToPlay';
 import { Features } from './components/Features';
 import { Footer } from './components/Footer';
 import { CreateRoomModal } from './components/CreateRoomModal';
+import { JoinRoomModal } from './components/JoinRoomModal';
+import { WaitingLobby } from './components/WaitingLobby';
 import { Sparkles, Gamepad2 } from 'lucide-react';
 import { type RoomInfo } from './types/room';
+import { useRoomStore } from './store/roomStore';
+
+// URL query parameter helpers for seamless refresh and shareable links
+const updateUrlWithRoom = (roomId: string) => {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  url.searchParams.set('room', roomId);
+  window.history.pushState({}, '', url.toString());
+};
+
+const clearUrlRoom = () => {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete('room');
+  window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+};
+
+const getInitialScreen = (): 'home' | 'lobby' | 'game' => {
+  if (typeof window === 'undefined') return 'home';
+  const params = new URLSearchParams(window.location.search);
+  const roomParam = params.get('room');
+  const savedRoom = useRoomStore.getState().currentRoom;
+  if (roomParam && savedRoom && savedRoom.id === roomParam) {
+    return 'lobby';
+  }
+  return 'home';
+};
 
 export const App: React.FC = () => {
+  const { currentRoom, leaveRoom } = useRoomStore();
+  const [screen, setScreen] = useState<'home' | 'lobby' | 'game'>(getInitialScreen);
   const [notification, setNotification] = useState<{ message: string; type: 'info' | 'success' } | null>(null);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
+  const [isJoinRoomOpen, setIsJoinRoomOpen] = useState(false);
 
   const showNotification = (message: string) => {
     setNotification({ message, type: 'info' });
@@ -19,21 +51,63 @@ export const App: React.FC = () => {
     }, 4000);
   };
 
-  // Detect invite link on page load (?room=DOODLE-XXXX)
+  // Handle invitation link alerts and session reconnect notices
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
+
     if (roomParam) {
-      const timer = setTimeout(() => {
-        showNotification(`Invited to room: ${roomParam}! Enter your name and click Play to join.`);
-      }, 100);
-      return () => clearTimeout(timer);
+      if (currentRoom && currentRoom.id === roomParam) {
+        const timer = setTimeout(() => {
+          showNotification(`Reconnected to room ${roomParam}`);
+        }, 120);
+        return () => clearTimeout(timer);
+      } else {
+        const timer = setTimeout(() => {
+          showNotification(`Invited to room: ${roomParam}! Click "Join with Room Code" or enter your name to join.`);
+        }, 120);
+        return () => clearTimeout(timer);
+      }
     }
-  }, []);
+  }, [currentRoom]);
+
+  // Handle browser Back / Forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const roomParam = params.get('room');
+      if (!roomParam) {
+        setScreen('home');
+      } else if (currentRoom && currentRoom.id === roomParam) {
+        setScreen('lobby');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [currentRoom]);
 
   const handleEnterLobby = (room: RoomInfo) => {
-    showNotification(`Entering waiting lobby for ${room.id} as host! (Phase 3 Lobby Ready)`);
     setIsCreateRoomOpen(false);
+    updateUrlWithRoom(room.id);
+    setScreen('lobby');
+    showNotification(`Entered waiting lobby for ${room.id}! Share the link with your team.`);
+  };
+
+  const handleJoinedLobby = (roomId: string) => {
+    updateUrlWithRoom(roomId);
+    setScreen('lobby');
+    showNotification(`Joined lobby for ${roomId}! Waiting for host to start.`);
+  };
+
+  const handleStartGame = () => {
+    showNotification("🚀 Starting game! Phase 4: Drawing Canvas & Guess Chat coming next.");
+  };
+
+  const handleLeaveLobby = () => {
+    clearUrlRoom();
+    leaveRoom();
+    setScreen('home');
+    showNotification("Left the waiting lobby.");
   };
 
   return (
@@ -55,38 +129,55 @@ export const App: React.FC = () => {
 
       {/* Full-width Main Wrapper */}
       <main className="relative z-10 w-full flex flex-col items-center flex-1">
-        {/* Section 1: Hero & Interactive Card */}
+        {/* Navigation / Brand Header */}
         <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
           <Header />
+        </div>
 
-          {/* Central interactive card */}
-          <section className="w-full mt-3 flex justify-center">
-            <HomeCard
-              onPlayPublic={() => {
-                showNotification("Quick matchmaking queued! Real-time rooms connect in Phase 5.");
-              }}
-              onCreatePrivateRoom={() => {
-                setIsCreateRoomOpen(true);
-              }}
+        {/* Screen Routing: Lobby vs Home */}
+        {screen === 'lobby' ? (
+          <section className="w-full my-auto py-4">
+            <WaitingLobby
+              onStartGame={handleStartGame}
+              onLeaveLobby={handleLeaveLobby}
             />
           </section>
-        </div>
+        ) : (
+          <>
+            {/* Section 1: Hero & Interactive Card */}
+            <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
+              <section className="w-full mt-3 flex justify-center">
+                <HomeCard
+                  onPlayPublic={() => {
+                    showNotification("Quick matchmaking queued! Real-time public rooms connect in Phase 5.");
+                  }}
+                  onCreatePrivateRoom={() => {
+                    setIsCreateRoomOpen(true);
+                  }}
+                  onOpenJoinRoom={() => {
+                    setIsJoinRoomOpen(true);
+                  }}
+                />
+              </section>
+            </div>
 
-        {/* Section 2: How to Play */}
-        <section id="rules" className="w-full">
-          <HowToPlay />
-        </section>
+            {/* Section 2: How to Play */}
+            <section id="rules" className="w-full">
+              <HowToPlay />
+            </section>
 
-        {/* Section 3: Game Features */}
-        <div className="w-full">
-          <Features />
-        </div>
+            {/* Section 3: Game Features */}
+            <div className="w-full">
+              <Features />
+            </div>
 
-        {/* Remote Team Mini-games teaser pill */}
-        <div className="mt-2 mb-8 flex items-center gap-2 text-xs text-slate-400 bg-slate-900/60 border border-slate-800/80 px-4 py-2 rounded-full shadow-sm">
-          <Gamepad2 className="w-4 h-4 text-indigo-400" />
-          <span>More team mini-games coming soon to the platform</span>
-        </div>
+            {/* Remote Team Mini-games teaser pill */}
+            <div className="mt-2 mb-8 flex items-center gap-2 text-xs text-slate-400 bg-slate-900/60 border border-slate-800/80 px-4 py-2 rounded-full shadow-sm">
+              <Gamepad2 className="w-4 h-4 text-indigo-400" />
+              <span>More team mini-games coming soon to the platform</span>
+            </div>
+          </>
+        )}
       </main>
 
       {/* Full-width Footer */}
@@ -98,8 +189,16 @@ export const App: React.FC = () => {
         onClose={() => setIsCreateRoomOpen(false)}
         onEnterLobby={handleEnterLobby}
       />
+
+      {/* Phase 3: Join Private Room Modal */}
+      <JoinRoomModal
+        isOpen={isJoinRoomOpen}
+        onClose={() => setIsJoinRoomOpen(false)}
+        onSuccess={handleJoinedLobby}
+      />
     </div>
   );
 };
 
 export default App;
+

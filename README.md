@@ -42,7 +42,21 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
   - Human-friendly room code generator (e.g. `DOODLE-7K9A`, filtering out ambiguous characters `0`, `O`, `1`, `I`).
   - Full invitation link generator with a 1-click **Copy to Clipboard** button and tactile confirmation feedback.
   - **URL Parameter Listener**: Automatically detects invite links (`/?room=DOODLE-XXXX`) and prompts joining players.
-  - **Host Permission Tracking**: Creator is automatically flagged with host privileges.
+### Phase 3: Waiting Lobby, Joining Flow & Session Persistence ✅
+- **🛋️ Interactive Waiting Lobby**
+  - Room code badge (`DOODLE-XXXX`) and quick setting pills (rounds, turn time, language).
+  - Live player roster with avatar preview cards, ready status indicators, and open slot placeholders.
+  - **Host Controls**: Room creator is highlighted with an exclusive **Crown Badge (`👑 Room Host`)**, controls to kick players, and an emerald **"Start Game"** launch button.
+  - **Simulated Teammates Generator**: Host can click **`+ Add Test Player`** to simulate coworkers joining the lobby with distinct names and avatars for immediate layout and multi-player testing.
+  - **Custom Word Bank Preview**: Displays custom words registered during room setup.
+- **🚪 Direct Joining Flow & Invite Modal**
+  - **"Join with Room Code"** modal supporting short 4-letter codes (e.g. `7K9A`) with automatic prefix formatting to `DOODLE-7K9A`.
+  - Input validation with real-time error alerts.
+- **🔄 URL Synchronization & Zero-Flicker Refresh Recovery**
+  - Active room updates browser address bar query to `/?room=DOODLE-XXXX` without triggering full page reloads.
+  - Room state persists in `sessionStorage`/`localStorage` via Zustand `persist` middleware (`doodlesync-room-storage`).
+  - Refreshing (`Cmd+R` / `F5`) recovers the lobby screen instantly with player roster and host status intact.
+  - Browser **Back & Forward** buttons smoothly transition between lobby and home without errors (`popstate` listener).
 
 ---
 
@@ -80,16 +94,18 @@ React-Skribble.io-assignment/
 │   │   │   ├── Footer.tsx        # Audio mute, credits & shadcn modals
 │   │   │   ├── Header.tsx        # Custom DoodleSync brand & SVG logo
 │   │   │   ├── HomeCard.tsx      # Player entry card & game triggers
-│   │   │   └── HowToPlay.tsx     # 3-step quick guide
+│   │   │   ├── HowToPlay.tsx     # 3-step quick guide
+│   │   │   ├── JoinRoomModal.tsx # Join room code input dialog
+│   │   │   └── WaitingLobby.tsx  # Lobby screen with player roster & host controls
 │   │   ├── data/                 # Static datasets (50+ global countries)
 │   │   ├── lib/                  # Utility functions (cn tailwind merge)
 │   │   ├── store/                # Zustand stores
 │   │   │   ├── playerStore.ts    # Player identity & local storage sync
-│   │   │   └── roomStore.ts      # Room settings, code & invite link
+│   │   │   └── roomStore.ts      # Room state, players & persistence
 │   │   ├── types/                # TypeScript interface definitions
 │   │   │   ├── game.ts           # Avatar & profile types
-│   │   │   └── room.ts           # Room settings & info types
-│   │   ├── App.tsx               # Root page layout & invite listener
+│   │   │   └── room.ts           # Room settings, player & info types
+│   │   ├── App.tsx               # App routing, lobby screen & URL sync
 │   │   ├── index.css             # Tailwind v4 theme & Google Fonts
 │   │   └── main.tsx
 │   ├── index.html                # App entry with custom SVG favicon
@@ -146,8 +162,8 @@ npm run lint
   - Brand identity, custom logo, avatar studio, searchable country picker, responsive layout, and shadcn dialogs.
 - [x] **Phase 2 – Room Creation & Configuration**
   - Private room settings (rounds, turn time, language, custom word lists), unique code generator, and shareable invitation links.
-- [ ] **Phase 3 – Waiting Lobby & Joining Flow**
-  - Player list, room code copy, host indicators, kick player capability, and readiness states.
+- [x] **Phase 3 – Waiting Lobby & Joining Flow**
+  - Interactive waiting lobby screen, real-time player roster with host crown badge, simulated teammates generator for testing, host kick player controls, custom word bank preview, room code copy widget, and modal for joining via room code or invite link.
 - [ ] **Phase 4 – Core Gameplay UI**
   - HTML Canvas API drawing tools (pencil, brush, eraser, palette, stroke width), real-time guess chat, timer, and scoreboard.
 - [ ] **Phase 5 – Multiplayer Backend (Socket.IO)**
