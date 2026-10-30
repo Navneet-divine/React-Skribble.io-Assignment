@@ -240,9 +240,9 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-amber-500 hover:from-indigo-500 hover:to-amber-400 active:scale-[0.99] text-white font-heading font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+                  className="w-full py-3.5 px-6 rounded-2xl bg-indigo-600/90 hover:bg-indigo-600 active:scale-[0.99] text-white font-heading font-semibold text-base flex items-center justify-center gap-2 border border-indigo-400/30 shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
                 >
-                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <Sparkles className="w-4 h-4 text-indigo-300" />
                   <span>Generate Room & Invite Link</span>
                 </button>
               </div>
