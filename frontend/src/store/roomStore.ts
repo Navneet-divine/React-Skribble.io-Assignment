@@ -6,11 +6,13 @@ import { type AvatarConfig, AVATAR_PALETTES } from '../types/game';
 interface RoomState {
   currentRoom: RoomInfo | null;
   isHost: boolean;
+  gameStatus: 'lobby' | 'playing';
   players: LobbyPlayer[];
   createRoom: (settings: RoomSettings, hostPlayer?: { username: string; avatar: AvatarConfig }) => RoomInfo;
   joinRoom: (roomId: string, player: { username: string; avatar: AvatarConfig }, isHost?: boolean) => void;
   kickPlayer: (playerId: string) => void;
   addMockTeammate: () => void;
+  setGameStatus: (status: 'lobby' | 'playing') => void;
   leaveRoom: () => void;
 }
 
@@ -38,6 +40,7 @@ export const useRoomStore = create<RoomState>()(
     (set, get) => ({
       currentRoom: null,
       isHost: false,
+      gameStatus: 'lobby',
       players: [],
 
   createRoom: (settings: RoomSettings, hostPlayer) => {
@@ -69,6 +72,7 @@ export const useRoomStore = create<RoomState>()(
     set({
       currentRoom: newRoom,
       isHost: true,
+      gameStatus: 'lobby',
       players: initialPlayers,
     });
 
@@ -158,14 +162,19 @@ export const useRoomStore = create<RoomState>()(
     });
   },
 
-  leaveRoom: () => {
-    set({
-      currentRoom: null,
-      isHost: false,
-      players: [],
-    });
-  },
-}),
+    setGameStatus: (gameStatus: 'lobby' | 'playing') => {
+      set({ gameStatus });
+    },
+
+    leaveRoom: () => {
+      set({
+        currentRoom: null,
+        isHost: false,
+        gameStatus: 'lobby',
+        players: [],
+      });
+    },
+  }),
 {
   name: 'doodlesync-room-storage',
 }

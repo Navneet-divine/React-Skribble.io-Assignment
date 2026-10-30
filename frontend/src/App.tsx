@@ -7,6 +7,7 @@ import { Footer } from './components/Footer';
 import { CreateRoomModal } from './components/CreateRoomModal';
 import { JoinRoomModal } from './components/JoinRoomModal';
 import { WaitingLobby } from './components/WaitingLobby';
+import { GameScreen } from './components/GameScreen';
 import { Sparkles, Gamepad2 } from 'lucide-react';
 import { type RoomInfo } from './types/room';
 import { useRoomStore } from './store/roomStore';
@@ -30,15 +31,15 @@ const getInitialScreen = (): 'home' | 'lobby' | 'game' => {
   if (typeof window === 'undefined') return 'home';
   const params = new URLSearchParams(window.location.search);
   const roomParam = params.get('room');
-  const savedRoom = useRoomStore.getState().currentRoom;
-  if (roomParam && savedRoom && savedRoom.id === roomParam) {
-    return 'lobby';
+  const savedState = useRoomStore.getState();
+  if (roomParam && savedState.currentRoom && savedState.currentRoom.id === roomParam) {
+    return savedState.gameStatus === 'playing' ? 'game' : 'lobby';
   }
   return 'home';
 };
 
 export const App: React.FC = () => {
-  const { currentRoom, leaveRoom } = useRoomStore();
+  const { currentRoom, leaveRoom, setGameStatus } = useRoomStore();
   const [screen, setScreen] = useState<'home' | 'lobby' | 'game'>(getInitialScreen);
   const [notification, setNotification] = useState<{ message: string; type: 'info' | 'success' } | null>(null);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
@@ -59,7 +60,12 @@ export const App: React.FC = () => {
     if (roomParam) {
       if (currentRoom && currentRoom.id === roomParam) {
         const timer = setTimeout(() => {
-          showNotification(`Reconnected to room ${roomParam}`);
+          const status = useRoomStore.getState().gameStatus;
+          if (status === 'playing') {
+            showNotification(`Reconnected to active game in ${roomParam}!`);
+          } else {
+            showNotification(`Reconnected to room ${roomParam}`);
+          }
         }, 120);
         return () => clearTimeout(timer);
       } else {
@@ -79,7 +85,8 @@ export const App: React.FC = () => {
       if (!roomParam) {
         setScreen('home');
       } else if (currentRoom && currentRoom.id === roomParam) {
-        setScreen('lobby');
+        const status = useRoomStore.getState().gameStatus;
+        setScreen(status === 'playing' ? 'game' : 'lobby');
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -89,21 +96,37 @@ export const App: React.FC = () => {
   const handleEnterLobby = (room: RoomInfo) => {
     setIsCreateRoomOpen(false);
     updateUrlWithRoom(room.id);
+    setGameStatus('lobby');
     setScreen('lobby');
     showNotification(`Entered waiting lobby for ${room.id}! Share the link with your team.`);
   };
 
   const handleJoinedLobby = (roomId: string) => {
     updateUrlWithRoom(roomId);
+    setGameStatus('lobby');
     setScreen('lobby');
     showNotification(`Joined lobby for ${roomId}! Waiting for host to start.`);
   };
 
   const handleStartGame = () => {
-    showNotification("🚀 Starting game! Phase 4: Drawing Canvas & Guess Chat coming next.");
+    setGameStatus('playing');
+    setScreen('game');
+    showNotification("🚀 Game arena started! Welcome to Phase 4.");
+  };
+
+  const handleLeaveGame = () => {
+    setGameStatus('lobby');
+    if (currentRoom) {
+      setScreen('lobby');
+      showNotification("Returned to waiting lobby.");
+    } else {
+      setScreen('home');
+      showNotification("Returned to homepage.");
+    }
   };
 
   const handleLeaveLobby = () => {
+    setGameStatus('lobby');
     clearUrlRoom();
     leaveRoom();
     setScreen('home');
@@ -134,8 +157,12 @@ export const App: React.FC = () => {
           <Header />
         </div>
 
-        {/* Screen Routing: Lobby vs Home */}
-        {screen === 'lobby' ? (
+        {/* Screen Routing: Game vs Lobby vs Home */}
+        {screen === 'game' ? (
+          <section className="w-full my-auto py-2">
+            <GameScreen onLeaveGame={handleLeaveGame} />
+          </section>
+        ) : screen === 'lobby' ? (
           <section className="w-full my-auto py-4">
             <WaitingLobby
               onStartGame={handleStartGame}
@@ -143,13 +170,16 @@ export const App: React.FC = () => {
             />
           </section>
         ) : (
+
           <>
             {/* Section 1: Hero & Interactive Card */}
             <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
               <section className="w-full mt-3 flex justify-center">
                 <HomeCard
                   onPlayPublic={() => {
-                    showNotification("Quick matchmaking queued! Real-time public rooms connect in Phase 5.");
+                    setGameStatus('playing');
+                    setScreen('game');
+                    showNotification("🎮 Joined public arena demo! Phase 4 Core Gameplay active.");
                   }}
                   onCreatePrivateRoom={() => {
                     setIsCreateRoomOpen(true);
@@ -180,8 +210,8 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Full-width Footer */}
-      <Footer />
+      {/* Full-width Footer (Hidden during active gameplay) */}
+      {screen !== 'game' && <Footer />}
 
       {/* Phase 2: Create Private Room Modal */}
       <CreateRoomModal

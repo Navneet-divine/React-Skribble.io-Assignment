@@ -55,8 +55,38 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 - **🔄 URL Synchronization & Zero-Flicker Refresh Recovery**
   - Active room updates browser address bar query to `/?room=DOODLE-XXXX` without triggering full page reloads.
   - Room state persists in `sessionStorage`/`localStorage` via Zustand `persist` middleware (`doodlesync-room-storage`).
-  - Refreshing (`Cmd+R` / `F5`) recovers the lobby screen instantly with player roster and host status intact.
-  - Browser **Back & Forward** buttons smoothly transition between lobby and home without errors (`popstate` listener).
+  - Refreshing (`Cmd+R` / `F5`) seamlessly recovers the active game screen or lobby screen instantly with player roster and state intact.
+  ### Phase 4: Core Gameplay UI & Interactive Drawing Arena ✅
+- **🎨 High-DPI HTML5 Drawing Canvas & Pointer Events**
+  - Smooth Bezier interpolation (`lineCap = 'round'`, `lineJoin = 'round'`) for natural freehand sketching.
+  - Unified `PointerEvent` tracking (`onPointerDown`, `onPointerMove`, `onPointerUp`) with `setPointerCapture` for flawless mouse, touch, and stylus input.
+  - High-DPI / Retina display scaling via `window.devicePixelRatio` for razor-sharp strokes on any screen.
+  - Read-only protection for guessers with a visual watermark badge (*"Watching [Drawer] draw"*).
+- **📐 Resolution-Independent Normalized `(0–1)` Coordinates Architecture**
+  - Strokes stored as `{ x: number, y: number }` ratio points relative to canvas width/height.
+  - Future-proof: drawings created on a 1440px desktop will display with 100% geometric fidelity on a 375px mobile device in Phase 5.
+- **🎛️ Stacked 2-Row Drawing Toolbar**
+  - **Top Row (Up)**: Mode toggles (`Brush` / `Eraser`), 4 stroke widths (Fine 4px, Medium 8px, Thick 14px, Jumbo 24px), local **Undo** stroke stack, and **Clear Canvas** with inline confirmation popover.
+  - **Bottom Row (Down)**: 16 curated color swatches in an `8 × 2` grid, centered with generous padding and zero horizontal scrolling on all displays.
+- **⏱️ Game Top HUD & Dynamic Urgency Timer**
+  - Round tracker (`Round 1 of 3`) and room code indicator.
+  - **Dual Word Display**: Drawer sees secret word with letter count tag (`PIZZA 5 letters`); guessers see masked dashes with letter count and revealed hint characters (`_ _ _ _ _`).
+  - Countdown timer with 3 urgency states: **Emerald** (> 25s), **Amber** (11–25s), and pulsating **Crimson** (≤ 10s) with thin elapsed time bar.
+- **🏆 Live Ranked Scoreboard**
+  - Real-time ranked leader list sorted automatically by score.
+  - `#1` ranked player crowned with gold **Crown badge (👑)**.
+  - Vector avatar previews, player names, drawer indicator (✏️), and guess completion tags (✓ Guessed).
+- **💬 Real-Time Guess Chat & Highlight System**
+  - Auto-scrolling guess log with interactive guess submission (Enter key support).
+  - **Distinct Card Notifications**: Emerald celebratory cards (*"Emma guessed the word! +320 pts"*), Amber close guess alerts (*"David is very close!"*), and muted system alerts.
+  - Speed-based points calculation and drawer spoiler protection (blocks drawer from leaking secret word).
+- **🔤 Word Choice Modal with Countdown**
+  - 3 curated word cards of varying difficulty (Easy, Medium, Hard).
+  - 15-second animated countdown timer that auto-picks word #1 if time runs out.
+- **📱 Fully Responsive Desktop & Mobile Architecture**
+  - **Desktop (`≥ lg`)**: Sleek 3-column layout (Scoreboard 3 cols | Canvas & Tools 6 cols | Guess Chat 3 cols).
+  - **Mobile (`< lg`)**: Aspect ratio `4:3` pinned canvas at top with 1-tap mobile tabs (`Tools 🎨`, `Guesses 💬`, `Scores 🏆`) fitting cleanly inside a single viewport without clipping or endless vertical scroll.
+  - **Interactive Dev Mode**: Instant toggle between **Drawer View** and **Guesser View**, plus a **Simulate Guess** button for end-to-end frontend testing before Phase 5 Socket.IO connection.
 
 ---
 
@@ -90,22 +120,29 @@ React-Skribble.io-assignment/
 │   │   │   ├── AvatarPicker.tsx  # DiceBear customizer & color palette
 │   │   │   ├── CountrySelect.tsx # Searchable country/language combobox
 │   │   │   ├── CreateRoomModal.tsx # Room settings & invite link modal
+│   │   │   ├── DrawingCanvas.tsx # High-DPI HTML5 canvas with Pointer Events & undo
+│   │   │   ├── DrawingTools.tsx  # 2-row toolbar: tools, sizes, undo, clear & 16 colors
 │   │   │   ├── Features.tsx      # "Made for Playing Together" cards
 │   │   │   ├── Footer.tsx        # Audio mute, credits & shadcn modals
+│   │   │   ├── GameHeader.tsx    # Round tracker, word mask/reveal & urgency timer
+│   │   │   ├── GameScreen.tsx    # Main game arena container & mobile tab switcher
+│   │   │   ├── GuessChat.tsx     # Real-time guess feed & correct guess highlight cards
 │   │   │   ├── Header.tsx        # Custom DoodleSync brand & SVG logo
 │   │   │   ├── HomeCard.tsx      # Player entry card & game triggers
 │   │   │   ├── HowToPlay.tsx     # 3-step quick guide
 │   │   │   ├── JoinRoomModal.tsx # Join room code input dialog
-│   │   │   └── WaitingLobby.tsx  # Lobby screen with player roster & host controls
+│   │   │   ├── Scoreboard.tsx    # Ranked player roster, crown & drawer badges
+│   │   │   ├── WaitingLobby.tsx  # Lobby screen with player roster & host controls
+│   │   │   └── WordChoiceModal.tsx # 3 word cards with 15s selection timer
 │   │   ├── data/                 # Static datasets (50+ global countries)
 │   │   ├── lib/                  # Utility functions (cn tailwind merge)
 │   │   ├── store/                # Zustand stores
 │   │   │   ├── playerStore.ts    # Player identity & local storage sync
 │   │   │   └── roomStore.ts      # Room state, players & persistence
 │   │   ├── types/                # TypeScript interface definitions
-│   │   │   ├── game.ts           # Avatar & profile types
+│   │   │   ├── game.ts           # Drawing stroke, chat, player & word choice types
 │   │   │   └── room.ts           # Room settings, player & info types
-│   │   ├── App.tsx               # App routing, lobby screen & URL sync
+│   │   ├── App.tsx               # App routing (Home, Lobby, Game) & URL sync
 │   │   ├── index.css             # Tailwind v4 theme & Google Fonts
 │   │   └── main.tsx
 │   ├── index.html                # App entry with custom SVG favicon
@@ -164,8 +201,8 @@ npm run lint
   - Private room settings (rounds, turn time, language, custom word lists), unique code generator, and shareable invitation links.
 - [x] **Phase 3 – Waiting Lobby & Joining Flow**
   - Interactive waiting lobby screen, real-time player roster with host crown badge, simulated teammates generator for testing, host kick player controls, custom word bank preview, room code copy widget, and modal for joining via room code or invite link.
-- [ ] **Phase 4 – Core Gameplay UI**
-  - HTML Canvas API drawing tools (pencil, brush, eraser, palette, stroke width), real-time guess chat, timer, and scoreboard.
+- [x] **Phase 4 – Core Gameplay UI**
+  - High-DPI HTML5 Drawing Canvas with Pointer Events and sub-pixel stroke smoothing; resolution-independent normalized (0–1) coordinates for strokes; 16-color palette, brush sizes, eraser, undo stack, and clear canvas; dynamic countdown timer with urgency transitions; word selection modal with 15s timer; real-time scoreboard with ranks, avatars, and drawer badges; guess chat feed with celebratory correct guess banners; responsive desktop 3-column arena and mobile tabbed view.
 - [ ] **Phase 5 – Multiplayer Backend (Socket.IO)**
   - Room synchronization, real-time drawing stream, guess validation, and turn rotation.
 - [ ] **Phase 6 – Game Logic & Scoring**
