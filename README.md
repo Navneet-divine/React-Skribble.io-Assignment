@@ -14,6 +14,10 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
   - 4 distinct styles: **Robots**, **Emoji**, **Anime**, and **Adventurer**.
   - Left/right character cycling and an instant **Randomize Dice** button with smooth 3D rotation.
   - 8-color background badge palette selector.
+- **🎲 Skribbl.io-Style Meaningful Username Auto-Generation**
+  - Empty or unentered names are automatically populated with fun, memorable usernames (e.g., `HappyOtter42`, `DoodleFox78`, `SwiftFalcon91`).
+  - Interactive dice button right inside the name input allowing players to quickly shuffle names before joining or creating a room.
+  - Automatically syncs to lobby rosters, in-game scoreboards, and chat feeds.
 - **🌍 Searchable Global Country & Language Selector**
   - Built with **shadcn/ui** combobox pattern.
   - Complete catalog of **50+ worldwide countries and locales**, sorted **A to Z**.
@@ -24,10 +28,8 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 - **📜 Official Game Rules & Interactive Modals**
   - Accessible dialog modals powered by `@radix-ui/react-dialog` (shadcn/ui primitives).
   - Complete 6-step official game guide, About info, Privacy Policy, Terms of Service, and Contact modal.
-- **📱 Fully Responsive Across All Devices**
-  - **Mobile (< 640px)**: Floating modals with 16px safe margins, touch-optimized controls, wrapping avatar tabs, and comfortable edge margins.
-  - **Tablet (640px – 1024px)**: 2-column feature cards and spacious walk-through guides.
-  - **Desktop & Large Displays (1024px+)**: Centered ergonomic play card with fluid `max-w-5xl` feature grids and ambient gradient glows.
+
+---
 
 ### Phase 2: Private Room Creation & Link Generation ✅
 - **🛠️ Room Configuration Modal**
@@ -41,52 +43,92 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 - **🔗 Unique Room Code & Shareable Invitation Link**
   - Human-friendly room code generator (e.g. `DOODLE-7K9A`, filtering out ambiguous characters `0`, `O`, `1`, `I`).
   - Full invitation link generator with a 1-click **Copy to Clipboard** button and tactile confirmation feedback.
-  - **URL Parameter Listener**: Automatically detects invite links (`/?room=DOODLE-XXXX`) and prompts joining players.
-### Phase 3: Waiting Lobby, Joining Flow & Session Persistence ✅
+  - **1-Click Direct Join**: Guests opening an invitation link (`/?room=DOODLE-XXXX`) can click "Play" or enter a room code directly to connect to the waiting lobby.
+
+---
+
+### Phase 3: Waiting Lobby, Host Controls & Session Persistence ✅
 - **🛋️ Interactive Waiting Lobby**
   - Room code badge (`DOODLE-XXXX`) and quick setting pills (rounds, turn time, language).
   - Live player roster with avatar preview cards, ready status indicators, and open slot placeholders.
   - **Host Controls**: Room creator is highlighted with an exclusive **Crown Badge (`👑 Room Host`)**, controls to kick players, and an emerald **"Start Game"** launch button.
+  - **Minimum Player Guard**: Requires at least 2 connected players to start a game, preventing accidental solo starts and informing the host with friendly toast notifications.
   - **Simulated Teammates Generator**: Host can click **`+ Add Test Player`** to simulate coworkers joining the lobby with distinct names and avatars for immediate layout and multi-player testing.
-  - **Custom Word Bank Preview**: Displays custom words registered during room setup.
-- **🚪 Direct Joining Flow & Invite Modal**
-  - **"Join with Room Code"** modal supporting short 4-letter codes (e.g. `7K9A`) with automatic prefix formatting to `DOODLE-7K9A`.
-  - Input validation with real-time error alerts.
-- **🔄 URL Synchronization & Zero-Flicker Refresh Recovery**
-  - Active room updates browser address bar query to `/?room=DOODLE-XXXX` without triggering full page reloads.
+- **🚪 Clean Room Navigation & Invitation Handshake**
+  - Arriving via an invite link displays a single, polite invitation notice without spamming reconnection alerts.
   - Room state persists in `sessionStorage`/`localStorage` via Zustand `persist` middleware (`doodlesync-room-storage`).
-  - Refreshing (`Cmd+R` / `F5`) seamlessly recovers the active game screen or lobby screen instantly with player roster and state intact.
-  ### Phase 4: Core Gameplay UI & Interactive Drawing Arena ✅
+
+---
+
+### Phase 4: Core Gameplay UI & Interactive Drawing Arena ✅
 - **🎨 High-DPI HTML5 Drawing Canvas & Pointer Events**
   - Smooth Bezier interpolation (`lineCap = 'round'`, `lineJoin = 'round'`) for natural freehand sketching.
-  - Unified `PointerEvent` tracking (`onPointerDown`, `onPointerMove`, `onPointerUp`) with `setPointerCapture` for flawless mouse, touch, and stylus input.
+  - Unified `PointerEvent` tracking (`onPointerDown`, `onPointerMove`, `onPointerUp`) with `setPointerCapture` for mouse, touch, and stylus input.
   - High-DPI / Retina display scaling via `window.devicePixelRatio` for razor-sharp strokes on any screen.
   - Read-only protection for guessers with a visual watermark badge (*"Watching [Drawer] draw"*).
 - **📐 Resolution-Independent Normalized `(0–1)` Coordinates Architecture**
   - Strokes stored as `{ x: number, y: number }` ratio points relative to canvas width/height.
-  - Future-proof: drawings created on a 1440px desktop will display with 100% geometric fidelity on a 375px mobile device in Phase 5.
+  - Drawings created on a 1440px desktop display with 100% geometric fidelity on any mobile device.
 - **🎛️ Stacked 2-Row Drawing Toolbar**
   - **Top Row (Up)**: Mode toggles (`Brush` / `Eraser`), 4 stroke widths (Fine 4px, Medium 8px, Thick 14px, Jumbo 24px), local **Undo** stroke stack, and **Clear Canvas** with inline confirmation popover.
   - **Bottom Row (Down)**: 16 curated color swatches in an `8 × 2` grid, centered with generous padding and zero horizontal scrolling on all displays.
 - **⏱️ Game Top HUD & Dynamic Urgency Timer**
-  - Round tracker (`Round 1 of 3`) and room code indicator.
-  - **Dual Word Display**: Drawer sees secret word with letter count tag (`PIZZA 5 letters`); guessers see masked dashes with letter count and revealed hint characters (`_ _ _ _ _`).
+  - Accurate round tracker clamped to total rounds (`Round 1 of 3`, never overflowing to `Round 3 of 2`).
   - Countdown timer with 3 urgency states: **Emerald** (> 25s), **Amber** (11–25s), and pulsating **Crimson** (≤ 10s) with thin elapsed time bar.
-- **🏆 Live Ranked Scoreboard**
-  - Real-time ranked leader list sorted automatically by score.
-  - `#1` ranked player crowned with gold **Crown badge (👑)**.
-  - Vector avatar previews, player names, drawer indicator (✏️), and guess completion tags (✓ Guessed).
+
+---
+
+### Phase 5: Real-Time Multiplayer Backend (Socket.IO) ✅
+- **⚡ Authoritative Node.js + Express + Socket.IO Server**
+  - Real-time room synchronization, player presence, and socket session mapping.
+  - **Live Canvas Streaming**: Sub-millisecond stroke broadcasting with delta batching and normalized coordinates.
+  - **Authoritative Game Manager**: Server controls game phases (`choosing`, `drawing`, `round_end`, `game_end`) and turn rotations.
+  - **Turn Timers**: Server-authoritative timer countdown broadcasts (`timer:tick`) ensuring all connected clients remain in 100% lockstep.
+- **🔤 Synchronized Word Selection Modal**
+  - Drawer receives 3 curated word choices (Easy, Medium, Hard).
+  - Live server-synchronized countdown timer (`15s, 14s, 13s ... 0s`) with a smooth progress bar.
+  - Automatically selects the first word and transitions to the drawing phase if the timer runs out.
+
+---
+
+### Phase 6: Game Logic, Hints & Anti-Spoiler Safeguards ✅
+- **🛡️ Custom Drawer Spoiler Warning Modal**
+  - Replaced disruptive browser alerts with a polished custom dialog modal (`SpoilerWarningModal.tsx`).
+  - Prevents the drawer from leaking the secret word or sub-phrases in chat while allowing normal banter.
+  - Emits in-game system warnings when a spoiler attempt is intercepted.
+- **🔒 Isolated Guesser Hints & Drawer Word Display Safeguard**
+  - Word hints (`_ _ _ _ _` with progressive letter reveals) are emitted exclusively to guessers.
+  - Active drawer's view is protected with persistent word caching so their word (`OCTOPUS (7L)`) never turns into blank dashes mid-turn.
 - **💬 Real-Time Guess Chat & Highlight System**
   - Auto-scrolling guess log with interactive guess submission (Enter key support).
-  - **Distinct Card Notifications**: Emerald celebratory cards (*"Emma guessed the word! +320 pts"*), Amber close guess alerts (*"David is very close!"*), and muted system alerts.
-  - Speed-based points calculation and drawer spoiler protection (blocks drawer from leaking secret word).
-- **🔤 Word Choice Modal with Countdown**
-  - 3 curated word cards of varying difficulty (Easy, Medium, Hard).
-  - 15-second animated countdown timer that auto-picks word #1 if time runs out.
-- **📱 Fully Responsive Desktop & Mobile Architecture**
-  - **Desktop (`≥ lg`)**: Sleek 3-column layout (Scoreboard 3 cols | Canvas & Tools 6 cols | Guess Chat 3 cols).
-  - **Mobile (`< lg`)**: Aspect ratio `4:3` pinned canvas at top with 1-tap mobile tabs (`Tools 🎨`, `Guesses 💬`, `Scores 🏆`) fitting cleanly inside a single viewport without clipping or endless vertical scroll.
-  - **Interactive Dev Mode**: Instant toggle between **Drawer View** and **Guesser View**, plus a **Simulate Guess** button for end-to-end frontend testing before Phase 5 Socket.IO connection.
+  - High-density chat messages with distinct highlights:
+    - **Emerald badges**: Correct guess notifications (`"Emma guessed the word! +320 pts"`).
+    - **Amber alerts**: Close guess proximity notifications (`"'octopuss' is so close!"`).
+    - **System alerts**: Turn transitions, word selection announcements, and round updates.
+
+---
+
+### Phase 7: Host Migration, Default Victories & Game Over Experience ✅
+- **👑 Host Migration & Departure Handling**
+  - When the host leaves or closes their tab during an active game, host permissions are automatically reassigned to the next player.
+  - Departing players are gracefully redirected back to the clean homepage (`/` without room query).
+  - The remaining player is awarded a victory by default via `VictoryModal.tsx` and returned to the waiting lobby with the same room ID preserved to invite others or start again.
+- **🎉 End-of-Match Celebration (`GameOverModal.tsx`)**
+  - **"Both players are winners!"** banner for 2-player matches.
+  - **"Everyone is a winner!"** team celebration for 2+ player matches.
+  - Automatic 6-second countdown with smooth redirect back to the waiting lobby to start a new game together.
+
+---
+
+### Phase 8: Mobile UX Overhaul (Skribbl.io-Style Viewport Arena) ✅
+- **📱 Simultaneous Drawing & Typing Layout**
+  - Pinned drawing canvas at the top (`190px–210px`) so it never scrolls out of view.
+  - **Split Bottom Arena**:
+    - **Left Column (Scoreboard)**: Compact view showing player ranks (`#1`, `#2`), avatars, usernames, and live points.
+    - **Right Column (Guess Chat)**: Sleek, high-density chat message stream with auto-scrolling to newest guesses.
+  - **Dedicated Full-Width Guess Input Bar (`GuessChatInput`)**: Positioned directly beneath the split panel.
+  - **Zero-Scroll Viewport**: Entire game interface fits within standard mobile screens (e.g., iPhone SE `375 × 667`) allowing players to watch drawings and type guesses simultaneously.
+  - Fixed flex container overflow with `min-h-0` and `overflow-hidden` preventing any overlapping elements.
 
 ---
 
@@ -99,57 +141,70 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 - **UI Components**: [shadcn/ui](https://ui.shadcn.com/) (Radix UI primitives)
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **State Management**: [Zustand](https://zustand.docs.pmnd.rs/) with `persist` middleware
+- **Real-time Client**: [Socket.IO Client](https://socket.io/)
 - **Avatars**: [DiceBear API](https://api.dicebear.com/) (SVG vector graphics)
-- **Linter**: [Oxlint](https://oxc.rs/) (High-performance linter, 0 errors / 0 warnings)
 
-### Backend (Upcoming – Phase 5)
-- **Runtime**: Node.js
-- **Server**: Express.js
-- **Multiplayer**: Socket.IO for real-time canvas stroke sync, chat rooms, and authoritative timer logic
+### Backend
+- **Runtime**: [Node.js](https://nodejs.org/) (TypeScript)
+- **Server Framework**: [Express](https://expressjs.com/)
+- **Real-time Engine**: [Socket.IO](https://socket.io/) (bidirectional event-driven communication)
+- **State Management**: In-memory room and player session store with timer intervals
 
 ---
 
 ## 📁 Repository Structure
 
 ```
-React-Skribble.io-assignment/
-├── frontend/                     # Independent React + Vite client
+React-Skribble.io-Assignment/
+├── frontend/                         # React + Vite client
 │   ├── src/
-│   │   ├── components/           # Modular UI components
-│   │   │   ├── ui/               # shadcn/ui Dialog primitives
-│   │   │   ├── AvatarPicker.tsx  # DiceBear customizer & color palette
-│   │   │   ├── CountrySelect.tsx # Searchable country/language combobox
-│   │   │   ├── CreateRoomModal.tsx # Room settings & invite link modal
-│   │   │   ├── DrawingCanvas.tsx # High-DPI HTML5 canvas with Pointer Events & undo
-│   │   │   ├── DrawingTools.tsx  # 2-row toolbar: tools, sizes, undo, clear & 16 colors
-│   │   │   ├── Features.tsx      # "Made for Playing Together" cards
-│   │   │   ├── Footer.tsx        # Audio mute, credits & shadcn modals
-│   │   │   ├── GameHeader.tsx    # Round tracker, word mask/reveal & urgency timer
-│   │   │   ├── GameScreen.tsx    # Main game arena container & mobile tab switcher
-│   │   │   ├── GuessChat.tsx     # Real-time guess feed & correct guess highlight cards
-│   │   │   ├── Header.tsx        # Custom DoodleSync brand & SVG logo
-│   │   │   ├── HomeCard.tsx      # Player entry card & game triggers
-│   │   │   ├── HowToPlay.tsx     # 3-step quick guide
-│   │   │   ├── JoinRoomModal.tsx # Join room code input dialog
-│   │   │   ├── Scoreboard.tsx    # Ranked player roster, crown & drawer badges
-│   │   │   ├── WaitingLobby.tsx  # Lobby screen with player roster & host controls
-│   │   │   └── WordChoiceModal.tsx # 3 word cards with 15s selection timer
-│   │   ├── data/                 # Static datasets (50+ global countries)
-│   │   ├── lib/                  # Utility functions (cn tailwind merge)
-│   │   ├── store/                # Zustand stores
-│   │   │   ├── playerStore.ts    # Player identity & local storage sync
-│   │   │   └── roomStore.ts      # Room state, players & persistence
-│   │   ├── types/                # TypeScript interface definitions
-│   │   │   ├── game.ts           # Drawing stroke, chat, player & word choice types
-│   │   │   └── room.ts           # Room settings, player & info types
-│   │   ├── App.tsx               # App routing (Home, Lobby, Game) & URL sync
-│   │   ├── index.css             # Tailwind v4 theme & Google Fonts
+│   │   ├── components/               # Modular UI components
+│   │   │   ├── ui/                   # shadcn/ui Dialog primitives
+│   │   │   ├── AvatarPicker.tsx      # DiceBear customizer & color palette
+│   │   │   ├── CountrySelect.tsx     # Searchable country/language combobox
+│   │   │   ├── CreateRoomModal.tsx   # Room settings & invite link modal
+│   │   │   ├── DrawingCanvas.tsx     # High-DPI HTML5 canvas with Pointer Events & undo
+│   │   │   ├── DrawingTools.tsx      # 2-row toolbar: tools, sizes, undo, clear & 16 colors
+│   │   │   ├── Features.tsx          # "Made for Playing Together" cards
+│   │   │   ├── Footer.tsx            # Audio mute, credits & shadcn modals
+│   │   │   ├── GameHeader.tsx        # Clamped round tracker, word mask & urgency timer
+│   │   │   ├── GameOverModal.tsx     # Match completion modal ("Everyone is a winner!")
+│   │   │   ├── GameScreen.tsx        # Main game arena (Desktop 3-col & Mobile split)
+│   │   │   ├── GuessChat.tsx         # Live chat feed & exported GuessChatInput
+│   │   │   ├── Header.tsx            # Custom DoodleSync brand & SVG logo
+│   │   │   ├── HomeCard.tsx          # Player entry card, auto-username & dice shuffle
+│   │   │   ├── HowToPlay.tsx         # 3-step quick guide
+│   │   │   ├── JoinRoomModal.tsx     # Join room code input dialog
+│   │   │   ├── Scoreboard.tsx        # Ranked player roster (Desktop & Compact mobile)
+│   │   │   ├── SpoilerWarningModal.tsx # Drawer anti-spoiler alert dialog
+│   │   │   ├── VictoryModal.tsx      # Host departure / default victory modal
+│   │   │   ├── WaitingLobby.tsx      # Lobby screen with player roster & host controls
+│   │   │   └── WordChoiceModal.tsx   # 3 word cards with live 15s server countdown
+│   │   ├── data/                     # 50+ worldwide countries catalog
+│   │   ├── lib/                      # Utility functions & singleton Socket.IO client
+│   │   ├── store/                    # Zustand stores (playerStore & roomStore)
+│   │   ├── types/                    # TypeScript interfaces (game.ts & room.ts)
+│   │   ├── App.tsx                   # App routing, one-time invite alerts & URL sync
+│   │   ├── index.css                 # Tailwind v4 theme & Google Fonts
 │   │   └── main.tsx
-│   ├── index.html                # App entry with custom SVG favicon
+│   ├── index.html                    # App entry with custom SVG favicon
 │   ├── package.json
-│   ├── vite.config.ts
-│   └── .gitignore
-├── backend/                      # (Reserved for Phase 5 Socket.IO server)
+│   └── vite.config.ts
+├── backend/                          # Node.js + Express + Socket.IO server
+│   ├── src/
+│   │   ├── constants/                # Built-in multi-language word banks
+│   │   ├── handlers/
+│   │   │   └── socketHandler.ts      # Socket event listeners & room event triggers
+│   │   ├── store/
+│   │   │   └── roomStore.ts          # In-memory room mappings & state helpers
+│   │   ├── types/                    # Backend types & event payloads
+│   │   ├── utils/
+│   │   │   ├── gameManager.ts        # Turn timers, word selection & scoring logic
+│   │   │   └── roomUtils.ts          # Room serialization & code generator
+│   │   ├── index.ts                  # Server initialization & Socket.IO server setup
+│   │   └── server.ts
+│   ├── package.json
+│   └── tsconfig.json
 └── README.md
 ```
 
@@ -158,57 +213,50 @@ React-Skribble.io-assignment/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (version 18 or higher recommended)
+- [Node.js](https://nodejs.org/) (v18 or higher recommended)
 - `npm` (comes with Node.js)
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/Navneet-divine/React-Skribble.io-Assignment.git
-cd React-Skribble.io-Assignment
-```
-
-### 2. Install Frontend Dependencies
-```bash
-cd frontend
-npm install
-```
-
-### 3. Start the Development Server
-```bash
-npm run dev
-```
-
-Open [http://localhost:5174/](http://localhost:5174/) in your browser to experience DoodleSync live.
-
-### 4. Build for Production
-To create an optimized production build:
-```bash
-npm run build
-```
-
-To run the linter:
-```bash
-npm run lint
-```
 
 ---
 
-## 🗺️ Roadmap & Development Plan
+### 1. Setup Backend Server
 
-- [x] **Phase 1 – Homepage & Design System**
-  - Brand identity, custom logo, avatar studio, searchable country picker, responsive layout, and shadcn dialogs.
-- [x] **Phase 2 – Room Creation & Configuration**
-  - Private room settings (rounds, turn time, language, custom word lists), unique code generator, and shareable invitation links.
-- [x] **Phase 3 – Waiting Lobby & Joining Flow**
-  - Interactive waiting lobby screen, real-time player roster with host crown badge, simulated teammates generator for testing, host kick player controls, custom word bank preview, room code copy widget, and modal for joining via room code or invite link.
-- [x] **Phase 4 – Core Gameplay UI**
-  - High-DPI HTML5 Drawing Canvas with Pointer Events and sub-pixel stroke smoothing; resolution-independent normalized (0–1) coordinates for strokes; 16-color palette, brush sizes, eraser, undo stack, and clear canvas; dynamic countdown timer with urgency transitions; word selection modal with 15s timer; real-time scoreboard with ranks, avatars, and drawer badges; guess chat feed with celebratory correct guess banners; responsive desktop 3-column arena and mobile tabbed view.
-- [ ] **Phase 5 – Multiplayer Backend (Socket.IO)**
-  - Room synchronization, real-time drawing stream, guess validation, and turn rotation.
-- [ ] **Phase 6 – Game Logic & Scoring**
-  - Server-authoritative secret word selection, hint reveals, and speed-based score calculation.
-- [ ] **Phase 7 – Final Results & Polish**
-  - Podium leaderboard, confetti effects, and "Play Again" flows.
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+The backend server starts on **`http://localhost:5001`**.
+
+---
+
+### 2. Setup Frontend Client
+
+Open a second terminal window:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend client starts on **`http://localhost:5173`** (or next available port).
+
+---
+
+### 3. Build for Production
+
+To validate TypeScript compilation and build both projects for production:
+
+```bash
+# Build backend
+cd backend
+npm run build
+
+# Build frontend
+cd ../frontend
+npm run build
+```
 
 ---
 

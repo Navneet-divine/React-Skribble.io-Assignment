@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, PlusCircle, User, AlertCircle, X, LogIn } from 'lucide-react';
+import { Play, PlusCircle, User, AlertCircle, X, LogIn, Sparkles, Dices } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { AvatarPicker } from './AvatarPicker';
 import { CountrySelect } from './CountrySelect';
@@ -15,18 +15,21 @@ export const HomeCard: React.FC<HomeCardProps> = ({
   onCreatePrivateRoom,
   onOpenJoinRoom,
 }) => {
-  const { username, setUsername } = usePlayerStore();
+  const { username, setUsername, ensureUsername, randomizeUsername } = usePlayerStore();
   const [error, setError] = useState<string | null>(null);
 
+  // Detect if user was invited via URL query e.g. /?room=DOODLE-45YC
+  const [invitedRoomId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('room');
+  });
+
   const validateAndProceed = (action: () => void) => {
-    const trimmed = username.trim();
-    if (!trimmed) {
-      setError('Please enter a username to continue!');
-      return;
-    }
-    if (trimmed.length < 2) {
-      setError('Username must be at least 2 characters.');
-      return;
+    // If username is empty or too short, automatically generate a meaningful name just like Skribbl.io!
+    let current = username.trim();
+    if (!current || current.length < 2) {
+      current = ensureUsername();
     }
     setError(null);
     action();
@@ -37,8 +40,6 @@ export const HomeCard: React.FC<HomeCardProps> = ({
     validateAndProceed(() => {
       if (onPlayPublic) {
         onPlayPublic();
-      } else {
-        alert(`Ready to matchmake for player: ${username}! (Public queue ready for Phase 5)`);
       }
     });
   };
@@ -56,6 +57,17 @@ export const HomeCard: React.FC<HomeCardProps> = ({
   return (
     <div className="w-full max-w-md mx-auto bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 sm:p-6 md:p-8 shadow-2xl shadow-indigo-950/40 relative">
       <form onSubmit={handlePlay} className="space-y-5">
+        {/* Room Invitation Banner if shared link */}
+        {invitedRoomId && (
+          <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="truncate">
+              <span>Invited to private room: </span>
+              <span className="font-mono font-bold text-white tracking-wider">{invitedRoomId}</span>
+            </div>
+          </div>
+        )}
+
         {/* Username Input & Language Row */}
         <div className="space-y-3">
           <div className="relative">
@@ -67,22 +79,33 @@ export const HomeCard: React.FC<HomeCardProps> = ({
               type="text"
               value={username}
               maxLength={20}
-              placeholder="Enter your name..."
+              placeholder="Enter your name (or auto-generate)..."
               onChange={(e) => {
                 setUsername(e.target.value);
                 if (error) setError(null);
               }}
-              className="w-full pl-10 pr-9 py-3 bg-slate-800/90 text-white placeholder-slate-400 text-base font-medium rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-inner"
+              className="w-full pl-10 pr-16 py-3 bg-slate-800/90 text-white placeholder-slate-400 text-base font-medium rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-inner"
             />
-            {username && (
+            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {username && (
+                <button
+                  type="button"
+                  onClick={() => setUsername('')}
+                  title="Clear name"
+                  className="p-1 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setUsername('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                onClick={() => randomizeUsername()}
+                title="Randomize player name"
+                className="p-1 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-700/60 transition-colors cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <Dices className="w-4 h-4" />
               </button>
-            )}
+            </div>
           </div>
 
           {/* Validation Error Message */}
@@ -113,7 +136,7 @@ export const HomeCard: React.FC<HomeCardProps> = ({
             className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.99] text-white font-heading font-bold text-lg flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer"
           >
             <Play className="w-5 h-5 fill-white" />
-            <span>Play!</span>
+            <span>{invitedRoomId ? `Join ${invitedRoomId} & Play!` : 'Play!'}</span>
           </button>
 
           {/* Create Private Room Button */}

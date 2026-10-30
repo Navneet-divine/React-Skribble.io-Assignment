@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { type WordChoice } from '../types/game';
 import { Sparkles, Clock, Check } from 'lucide-react';
 
@@ -7,6 +7,7 @@ interface WordChoiceModalProps {
   words: WordChoice[];
   onSelectWord: (word: string) => void;
   selectionDuration?: number; // default: 15 seconds
+  timeLeft?: number; // optional live server-synchronized time
 }
 
 export const WordChoiceModal: React.FC<WordChoiceModalProps> = ({
@@ -14,20 +15,34 @@ export const WordChoiceModal: React.FC<WordChoiceModalProps> = ({
   words,
   onSelectWord,
   selectionDuration = 15,
+  timeLeft: serverTimeLeft,
 }) => {
-  const [timeLeft, setTimeLeft] = useState(selectionDuration);
+  const [localTimeLeft, setLocalTimeLeft] = useState(selectionDuration);
+  const onSelectWordRef = useRef(onSelectWord);
+  const wordsRef = useRef(words);
 
-  // Countdown timer for 15s selection
   useEffect(() => {
-    if (!isOpen) return;
+    onSelectWordRef.current = onSelectWord;
+    wordsRef.current = words;
+  });
+
+  // Reset local timer when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setLocalTimeLeft(selectionDuration);
+    }
+  }, [isOpen, selectionDuration]);
+
+  // Fallback local countdown if serverTimeLeft is not provided
+  useEffect(() => {
+    if (!isOpen || serverTimeLeft !== undefined) return;
 
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
+      setLocalTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          // Auto-select first word when timer runs out
-          if (words.length > 0) {
-            onSelectWord(words[0].word);
+          if (wordsRef.current.length > 0) {
+            onSelectWordRef.current(wordsRef.current[0].word);
           }
           return 0;
         }
@@ -37,13 +52,13 @@ export const WordChoiceModal: React.FC<WordChoiceModalProps> = ({
 
     return () => {
       clearInterval(interval);
-      setTimeLeft(selectionDuration);
     };
-  }, [isOpen, selectionDuration, words, onSelectWord]);
+  }, [isOpen, serverTimeLeft]);
 
   if (!isOpen) return null;
 
-  const progressPercent = (timeLeft / selectionDuration) * 100;
+  const displayTime = serverTimeLeft !== undefined ? serverTimeLeft : localTimeLeft;
+  const progressPercent = Math.max(0, Math.min(100, (displayTime / selectionDuration) * 100));
 
   const getDifficultyBadge = (diff: 'easy' | 'medium' | 'hard') => {
     switch (diff) {
@@ -91,7 +106,7 @@ export const WordChoiceModal: React.FC<WordChoiceModalProps> = ({
             <span className="text-slate-400 flex items-center gap-1">
               <Clock className="w-3.5 h-3.5 text-amber-400" /> Auto-picking in
             </span>
-            <span className="font-mono font-bold text-amber-400">{timeLeft}s</span>
+            <span className="font-mono font-bold text-amber-400">{displayTime}s</span>
           </div>
           <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div

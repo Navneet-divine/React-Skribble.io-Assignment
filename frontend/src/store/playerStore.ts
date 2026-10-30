@@ -12,6 +12,27 @@ interface PlayerState {
   randomizeAvatar: () => void;
   cycleColor: (direction: 'next' | 'prev') => void;
   cycleSeed: (direction: 'next' | 'prev') => void;
+  ensureUsername: () => string;
+  randomizeUsername: () => string;
+}
+
+const ADJECTIVES = [
+  'Clever', 'Swift', 'Happy', 'Doodle', 'Neon', 'Pixel', 'Cosmic', 'Speedy',
+  'Brave', 'Magic', 'Silent', 'Shadow', 'Lucky', 'Mighty', 'Curious', 'Golden',
+  'Hyper', 'Chill', 'Vivid', 'Sparky', 'Crafty', 'Wild', 'Jolly', 'Sneaky'
+];
+
+const NOUNS = [
+  'Fox', 'Panda', 'Koala', 'Otter', 'Falcon', 'Tiger', 'Bear', 'Gecko',
+  'Lion', 'Rabbit', 'Eagle', 'Wolf', 'Dolphin', 'Badger', 'Lynx', 'Penguin',
+  'Cheetah', 'Owl', 'Hawk', 'Beaver', 'Jaguar', 'Chameleon', 'Turtle', 'Raccoon'
+];
+
+export function generateMeaningfulUsername(): string {
+  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+  const num = Math.floor(Math.random() * 89) + 10;
+  return `${adj}${noun}${num}`;
 }
 
 const DEFAULT_SEEDS = [
@@ -34,6 +55,20 @@ export const usePlayerStore = create<PlayerState>()(
       setUsername: (username: string) => set({ username }),
       setLanguage: (language: string) => set({ language }),
       setAvatar: (avatar: AvatarConfig) => set({ avatar }),
+
+      ensureUsername: () => {
+        const current = get().username.trim();
+        if (current.length >= 2) return current;
+        const generated = generateMeaningfulUsername();
+        set({ username: generated });
+        return generated;
+      },
+
+      randomizeUsername: () => {
+        const generated = generateMeaningfulUsername();
+        set({ username: generated });
+        return generated;
+      },
 
       randomizeAvatar: () => {
         const randomSeed = DEFAULT_SEEDS[Math.floor(Math.random() * DEFAULT_SEEDS.length)] + '-' + Math.floor(Math.random() * 999);

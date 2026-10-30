@@ -126,7 +126,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
             <RotateCcw className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-indigo-400" />
             <div className="text-[11px] sm:text-xs font-semibold whitespace-nowrap">
               <span className="text-slate-400 hidden sm:inline">Round </span>
-              <span className="text-white font-bold">{currentRound}</span>
+              <span className="text-white font-bold">{Math.min(currentRound, totalRounds)}</span>
               <span className="text-slate-500"> / {totalRounds}</span>
             </div>
           </div>

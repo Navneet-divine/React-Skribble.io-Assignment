@@ -105,8 +105,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const rect = container.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
 
-    const displayWidth = Math.max(280, Math.floor(rect.width));
-    const displayHeight = Math.max(220, Math.floor(rect.height));
+    const displayWidth = Math.max(200, Math.floor(rect.width));
+    const displayHeight = Math.max(150, Math.floor(rect.height));
 
     const targetWidth = Math.floor(displayWidth * dpr);
     const targetHeight = Math.floor(displayHeight * dpr);

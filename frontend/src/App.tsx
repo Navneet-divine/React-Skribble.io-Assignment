@@ -8,9 +8,12 @@ import { CreateRoomModal } from './components/CreateRoomModal';
 import { JoinRoomModal } from './components/JoinRoomModal';
 import { WaitingLobby } from './components/WaitingLobby';
 import { GameScreen } from './components/GameScreen';
+import { VictoryModal } from './components/VictoryModal';
 import { Sparkles, Gamepad2 } from 'lucide-react';
 import { type RoomInfo } from './types/room';
 import { useRoomStore } from './store/roomStore';
+import { usePlayerStore } from './store/playerStore';
+import { socket, joinMultiplayerRoom, leaveMultiplayerRoom } from './lib/socket';
 
 // URL query parameter helpers for seamless refresh and shareable links
 const updateUrlWithRoom = (roomId: string) => {
@@ -45,6 +48,15 @@ export const App: React.FC = () => {
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
   const [isJoinRoomOpen, setIsJoinRoomOpen] = useState(false);
 
+  // Victory by default modal (e.g. when opponent leaves during game)
+  const [victoryModalInfo, setVictoryModalInfo] = useState<{
+    isOpen: boolean;
+    winnerName: string;
+    reason: string;
+    isNewHost: boolean;
+    roomId: string;
+  } | null>(null);
+
   const showNotification = (message: string) => {
     setNotification({ message, type: 'info' });
     setTimeout(() => {
@@ -52,30 +64,24 @@ export const App: React.FC = () => {
     }, 4000);
   };
 
-  // Handle invitation link alerts and session reconnect notices
+  // Handle invitation link alert (only once when arriving via shared link without an active room)
+  const hasAnnouncedInvite = React.useRef(false);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
 
-    if (roomParam) {
-      if (currentRoom && currentRoom.id === roomParam) {
-        const timer = setTimeout(() => {
-          const status = useRoomStore.getState().gameStatus;
-          if (status === 'playing') {
-            showNotification(`Reconnected to active game in ${roomParam}!`);
-          } else {
-            showNotification(`Reconnected to room ${roomParam}`);
-          }
-        }, 120);
-        return () => clearTimeout(timer);
-      } else {
+    if (roomParam && !hasAnnouncedInvite.current) {
+      const savedRoom = useRoomStore.getState().currentRoom;
+      if (!savedRoom || savedRoom.id !== roomParam) {
+        hasAnnouncedInvite.current = true;
         const timer = setTimeout(() => {
           showNotification(`Invited to room: ${roomParam}! Click "Join with Room Code" or enter your name to join.`);
-        }, 120);
+        }, 300);
         return () => clearTimeout(timer);
       }
     }
-  }, [currentRoom]);
+  }, []);
 
   // Handle browser Back / Forward buttons
   useEffect(() => {
@@ -93,6 +99,47 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [currentRoom]);
 
+  // Real-time synchronization for game start and room transitions
+  useEffect(() => {
+    const handleRoomData = (data: any) => {
+      const username = usePlayerStore.getState().username;
+      useRoomStore.getState().syncRoomData(data, username);
+      if (data.status === 'choosing' || data.status === 'drawing' || data.status === 'round_end' || data.status === 'game_end') {
+        setScreen('game');
+        setGameStatus('playing');
+      } else if (data.status === 'lobby') {
+        setScreen('lobby');
+        setGameStatus('lobby');
+      }
+    };
+
+    const handleVictoryDefault = (info: {
+      winnerId: string;
+      winnerName: string;
+      reason: string;
+      isNewHost: boolean;
+      roomId: string;
+    }) => {
+      setVictoryModalInfo({
+        isOpen: true,
+        winnerName: info.winnerName,
+        reason: info.reason,
+        isNewHost: Boolean(info.isNewHost),
+        roomId: info.roomId,
+      });
+      setScreen('lobby');
+      setGameStatus('lobby');
+    };
+
+    socket.on('room:data', handleRoomData);
+    socket.on('game:victory_default', handleVictoryDefault);
+
+    return () => {
+      socket.off('room:data', handleRoomData);
+      socket.off('game:victory_default', handleVictoryDefault);
+    };
+  }, [setGameStatus]);
+
   const handleEnterLobby = (room: RoomInfo) => {
     setIsCreateRoomOpen(false);
     updateUrlWithRoom(room.id);
@@ -109,28 +156,62 @@ export const App: React.FC = () => {
   };
 
   const handleStartGame = () => {
+    const currentPlayers = useRoomStore.getState().players;
+    if (currentPlayers.length < 2) {
+      showNotification("⚠️ At least 2 players are required to start the game!");
+      return;
+    }
     setGameStatus('playing');
     setScreen('game');
-    showNotification("🚀 Game arena started! Welcome to Phase 4.");
+    showNotification("🚀 Game arena started!");
   };
 
   const handleLeaveGame = () => {
+    leaveMultiplayerRoom();
     setGameStatus('lobby');
-    if (currentRoom) {
-      setScreen('lobby');
-      showNotification("Returned to waiting lobby.");
-    } else {
-      setScreen('home');
-      showNotification("Returned to homepage.");
-    }
+    clearUrlRoom();
+    leaveRoom();
+    setScreen('home');
+    showNotification("Left the game and returned to homepage.");
   };
 
   const handleLeaveLobby = () => {
+    leaveMultiplayerRoom();
     setGameStatus('lobby');
     clearUrlRoom();
     leaveRoom();
     setScreen('home');
     showNotification("Left the waiting lobby.");
+  };
+
+  const handlePlayFromHome = async () => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    const { avatar, ensureUsername } = usePlayerStore.getState();
+    const effectiveUsername = ensureUsername();
+
+    if (roomParam) {
+      showNotification(`Joining room ${roomParam}...`);
+      try {
+        const res = await joinMultiplayerRoom(roomParam, {
+          username: effectiveUsername,
+          avatar,
+        });
+
+        if (res && res.success && res.room) {
+          useRoomStore.getState().syncRoomData(res.room, effectiveUsername);
+          handleJoinedLobby(roomParam);
+          showNotification(`Joined room ${roomParam}!`);
+        } else {
+          showNotification(`⚠️ ${res?.error || 'Could not join room.'}`);
+        }
+      } catch {
+        useRoomStore.getState().joinRoom(roomParam, { username: effectiveUsername, avatar }, false);
+        handleJoinedLobby(roomParam);
+      }
+    } else {
+      setIsJoinRoomOpen(true);
+    }
   };
 
   return (
@@ -152,10 +233,12 @@ export const App: React.FC = () => {
 
       {/* Full-width Main Wrapper */}
       <main className="relative z-10 w-full flex flex-col items-center flex-1">
-        {/* Navigation / Brand Header */}
-        <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-          <Header />
-        </div>
+        {/* Navigation / Brand Header (Hidden during active gameplay to maximize mobile screen space) */}
+        {screen !== 'game' && (
+          <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
+            <Header />
+          </div>
+        )}
 
         {/* Screen Routing: Game vs Lobby vs Home */}
         {screen === 'game' ? (
@@ -176,11 +259,7 @@ export const App: React.FC = () => {
             <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
               <section className="w-full mt-3 flex justify-center">
                 <HomeCard
-                  onPlayPublic={() => {
-                    setGameStatus('playing');
-                    setScreen('game');
-                    showNotification("🎮 Joined public arena demo! Phase 4 Core Gameplay active.");
-                  }}
+                  onPlayPublic={handlePlayFromHome}
                   onCreatePrivateRoom={() => {
                     setIsCreateRoomOpen(true);
                   }}
@@ -225,6 +304,16 @@ export const App: React.FC = () => {
         isOpen={isJoinRoomOpen}
         onClose={() => setIsJoinRoomOpen(false)}
         onSuccess={handleJoinedLobby}
+      />
+
+      {/* Victory by Default Modal (Player left / host reassignment) */}
+      <VictoryModal
+        isOpen={Boolean(victoryModalInfo?.isOpen)}
+        winnerName={victoryModalInfo?.winnerName || ''}
+        reason={victoryModalInfo?.reason || ''}
+        isNewHost={Boolean(victoryModalInfo?.isNewHost)}
+        roomId={victoryModalInfo?.roomId || currentRoom?.id || ''}
+        onContinue={() => setVictoryModalInfo(null)}
       />
     </div>
   );
