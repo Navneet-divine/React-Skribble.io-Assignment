@@ -13,6 +13,8 @@ interface RoomState {
   kickPlayer: (playerId: string) => void;
   addMockTeammate: () => void;
   setGameStatus: (status: 'lobby' | 'playing') => void;
+  syncRoomData: (data: any, localUsername?: string) => void;
+  setPlayers: (players: LobbyPlayer[]) => void;
   leaveRoom: () => void;
 }
 
@@ -164,6 +166,58 @@ export const useRoomStore = create<RoomState>()(
 
     setGameStatus: (gameStatus: 'lobby' | 'playing') => {
       set({ gameStatus });
+    },
+
+    setPlayers: (players: LobbyPlayer[]) => {
+      set({ players });
+    },
+
+    syncRoomData: (data: any, localUsername?: string) => {
+      if (!data || !data.id) return;
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      const inviteLink = `${baseUrl}/?room=${data.id}`;
+
+      const rawPlayers = Array.isArray(data.players) ? data.players : [];
+      const mappedPlayers: LobbyPlayer[] = rawPlayers.map((p: any) => ({
+        id: p.id,
+        username: p.username,
+        avatar: p.avatar,
+        isHost: Boolean(p.isHost),
+        isReady: Boolean(p.isReady),
+        joinedAt: p.joinedAt || Date.now(),
+        score: p.score ?? 0,
+        isDrawing: Boolean(p.isDrawing),
+        hasGuessed: Boolean(p.hasGuessed),
+      }));
+
+      // Determine if current user is host
+      const isUserHost = localUsername
+        ? mappedPlayers.some((p) => p.username === localUsername && p.isHost)
+        : get().isHost;
+
+      const roomInfo: RoomInfo = {
+        id: data.id,
+        inviteLink,
+        isHost: isUserHost,
+        settings: data.settings || {
+          rounds: 3,
+          drawTime: 80,
+          maxPlayers: 8,
+          language: 'us',
+          customWords: [],
+          onlyCustomWords: false,
+        },
+        createdAt: Date.now(),
+      };
+
+      const isPlaying = data.status !== 'lobby' && data.status !== 'game_end';
+
+      set({
+        currentRoom: roomInfo,
+        players: mappedPlayers,
+        isHost: isUserHost,
+        gameStatus: isPlaying ? 'playing' : get().gameStatus,
+      });
     },
 
     leaveRoom: () => {

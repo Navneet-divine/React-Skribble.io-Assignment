@@ -6,7 +6,6 @@ import {
   Users,
   Play,
   LogOut,
-  UserPlus,
   Clock,
   RotateCcw,
   Globe,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useRoomStore } from '../store/roomStore';
 import { usePlayerStore, getAvatarUrl } from '../store/playerStore';
+import { socket, startMultiplayerGame, leaveMultiplayerRoom } from '../lib/socket';
 
 interface WaitingLobbyProps {
   onStartGame?: () => void;
@@ -26,9 +26,32 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
   onStartGame,
   onLeaveLobby,
 }) => {
-  const { currentRoom, isHost, players, addMockTeammate, kickPlayer, leaveRoom } = useRoomStore();
+  const { currentRoom, isHost, players, kickPlayer, leaveRoom, syncRoomData } = useRoomStore();
   const { username } = usePlayerStore();
   const [hasCopied, setHasCopied] = useState(false);
+
+  // Sync real-time updates from server (player joins, quits, game start)
+  React.useEffect(() => {
+    const handleRoomData = (data: any) => {
+      syncRoomData(data, username);
+      if (data.status === 'choosing' || data.status === 'drawing') {
+        onStartGame?.();
+      }
+    };
+
+    socket.on('room:data', handleRoomData);
+    return () => {
+      socket.off('room:data', handleRoomData);
+    };
+  }, [syncRoomData, username, onStartGame]);
+
+  const canStartGame = players.length >= 2;
+
+  const handleStart = () => {
+    if (!canStartGame) return;
+    startMultiplayerGame();
+    if (onStartGame) onStartGame();
+  };
 
   if (!currentRoom) {
     return (
@@ -57,6 +80,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
   };
 
   const handleLeave = () => {
+    leaveMultiplayerRoom();
     leaveRoom();
     if (onLeaveLobby) onLeaveLobby();
   };
@@ -122,19 +146,6 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
                 Players in Lobby ({players.length} / {maxPlayers})
               </h2>
             </div>
-
-            {/* Host: Add test teammate button for instant testing */}
-            {isHost && players.length < maxPlayers && (
-              <button
-                type="button"
-                onClick={addMockTeammate}
-                className="flex items-center gap-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 rounded-xl border border-indigo-500/20 transition-all cursor-pointer"
-                title="Add a simulated teammate to test lobby"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>+ Add Test Player</span>
-              </button>
-            )}
           </div>
 
           {/* Players Roster Grid */}
@@ -237,16 +248,27 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
               <div className="space-y-3">
                 <button
                   type="button"
-                  onClick={onStartGame}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.99] text-white font-heading font-bold text-lg flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/25 transition-all cursor-pointer"
+                  disabled={!canStartGame}
+                  onClick={handleStart}
+                  className={`w-full py-4 px-6 rounded-2xl font-heading font-bold text-base sm:text-lg flex items-center justify-center gap-2 transition-all ${
+                    canStartGame
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.99] text-white shadow-xl shadow-emerald-500/25 cursor-pointer'
+                      : 'bg-slate-800 text-slate-500 border border-slate-700/60 cursor-not-allowed opacity-80'
+                  }`}
                 >
-                  <Play className="w-5 h-5 fill-white" />
-                  <span>Start Game</span>
+                  <Play className={`w-5 h-5 ${canStartGame ? 'fill-white' : 'fill-slate-500'}`} />
+                  <span>{canStartGame ? `Start Game (${players.length} Players)` : 'Need 2+ Players to Start'}</span>
                 </button>
 
-                <p className="text-[11px] text-slate-400 text-center leading-relaxed">
-                  As the room host, click Start Game when all teammates have joined the lobby.
-                </p>
+                {!canStartGame ? (
+                  <p className="text-[11px] text-amber-300 text-center font-medium leading-relaxed bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl">
+                    ⚠️ At least 2 players are required to start (1 drawer & 1 guesser). Copy the invite link below and send it to your teammate!
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-emerald-400/90 text-center leading-relaxed font-medium">
+                    ✓ Ready to launch! Click Start Game to begin Round 1.
+                  </p>
+                )}
               </div>
             ) : (
               /* Non-Host View: Waiting status */

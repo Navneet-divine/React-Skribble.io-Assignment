@@ -16,6 +16,9 @@ export interface LobbyPlayer {
   isHost: boolean;
   isReady: boolean;
   joinedAt: number;
+  score?: number;
+  isDrawing?: boolean;
+  hasGuessed?: boolean;
 }
 
 export interface RoomInfo {

@@ -9,6 +9,7 @@ import {
 } from './ui/dialog';
 import { usePlayerStore } from '../store/playerStore';
 import { useRoomStore } from '../store/roomStore';
+import { joinMultiplayerRoom } from '../lib/socket';
 
 interface JoinRoomModalProps {
   isOpen: boolean;
@@ -22,12 +23,27 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
   onSuccess,
 }) => {
   const { username, avatar } = usePlayerStore();
-  const { joinRoom } = useRoomStore();
+  const { joinRoom, syncRoomData } = useRoomStore();
 
-  const [roomCode, setRoomCode] = useState('');
+  const [roomCode, setRoomCode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('room') || '';
+    }
+    return '';
+  });
   const [error, setError] = useState<string | null>(null);
+  const [isJoining, setIsJoining] = useState(false);
 
-  const handleJoin = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const r = params.get('room');
+      if (r) setRoomCode(r);
+    }
+  }, [isOpen]);
+
+  const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     let cleaned = roomCode.trim().toUpperCase();
 
@@ -46,15 +62,36 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
       return;
     }
 
-    if (!username.trim()) {
-      setError('Please set a username on the homepage before joining.');
-      return;
-    }
+    const effectiveUsername = username.trim() || usePlayerStore.getState().ensureUsername();
 
     setError(null);
-    joinRoom(cleaned, { username: username.trim(), avatar }, false);
-    onSuccess(cleaned);
-    onClose();
+    setIsJoining(true);
+
+    try {
+      const res = await joinMultiplayerRoom(cleaned, {
+        username: effectiveUsername,
+        avatar,
+      });
+
+      if (res && res.success && res.room) {
+        syncRoomData(res.room, effectiveUsername);
+        onSuccess(cleaned);
+        onClose();
+      } else if (res && !res.success) {
+        setError(res.error || 'Failed to join room.');
+      } else {
+        // Fallback to local
+        joinRoom(cleaned, { username: effectiveUsername, avatar }, false);
+        onSuccess(cleaned);
+        onClose();
+      }
+    } catch {
+      joinRoom(cleaned, { username: effectiveUsername, avatar }, false);
+      onSuccess(cleaned);
+      onClose();
+    } finally {
+      setIsJoining(false);
+    }
   };
 
   return (
@@ -109,9 +146,12 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full py-3 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-heading font-semibold text-base flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+              disabled={isJoining}
+              className={`w-full py-3 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-heading font-semibold text-base flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer ${
+                isJoining ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
             >
-              <span>Join Lobby</span>
+              <span>{isJoining ? 'Joining Lobby...' : 'Join Lobby'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

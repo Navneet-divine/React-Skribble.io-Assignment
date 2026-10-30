@@ -29,6 +29,7 @@ import {
   type RoomSettings,
   type RoomInfo,
 } from '../types/room';
+import { createMultiplayerRoom } from '../lib/socket';
 
 interface CreateRoomModalProps {
   isOpen: boolean;
@@ -61,8 +62,12 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
     .map((w) => w.trim())
     .filter((w) => w.length > 0);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     const settings: RoomSettings = {
       rounds,
@@ -73,11 +78,36 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       onlyCustomWords,
     };
 
-    const newRoom = createRoom(settings, {
-      username: username.trim() || 'Host',
+    const effectiveUsername = username.trim() || usePlayerStore.getState().ensureUsername();
+
+    const hostData = {
+      username: effectiveUsername,
       avatar,
-    });
-    setCreatedRoom(newRoom);
+    };
+
+    try {
+      const res = await createMultiplayerRoom(settings, hostData);
+      if (res && res.success && res.room) {
+        useRoomStore.getState().syncRoomData(res.room, hostData.username);
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        const roomInfo: RoomInfo = {
+          id: res.roomId || res.room.id,
+          inviteLink: `${baseUrl}/?room=${res.roomId || res.room.id}`,
+          isHost: true,
+          settings,
+          createdAt: Date.now(),
+        };
+        setCreatedRoom(roomInfo);
+      } else {
+        const newRoom = createRoom(settings, hostData);
+        setCreatedRoom(newRoom);
+      }
+    } catch {
+      const newRoom = createRoom(settings, hostData);
+      setCreatedRoom(newRoom);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCopyLink = async () => {
