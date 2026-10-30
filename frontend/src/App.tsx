@@ -1,19 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { HomeCard } from './components/HomeCard';
 import { HowToPlay } from './components/HowToPlay';
 import { Features } from './components/Features';
 import { Footer } from './components/Footer';
+import { CreateRoomModal } from './components/CreateRoomModal';
 import { Sparkles, Gamepad2 } from 'lucide-react';
+import { type RoomInfo } from './types/room';
 
 export const App: React.FC = () => {
   const [notification, setNotification] = useState<{ message: string; type: 'info' | 'success' } | null>(null);
+  const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
 
   const showNotification = (message: string) => {
     setNotification({ message, type: 'info' });
     setTimeout(() => {
       setNotification(null);
     }, 4000);
+  };
+
+  // Detect invite link on page load (?room=DOODLE-XXXX)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      const timer = setTimeout(() => {
+        showNotification(`Invited to room: ${roomParam}! Enter your name and click Play to join.`);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleEnterLobby = (room: RoomInfo) => {
+    showNotification(`Entering waiting lobby for ${room.id} as host! (Phase 3 Lobby Ready)`);
+    setIsCreateRoomOpen(false);
   };
 
   return (
@@ -39,25 +59,25 @@ export const App: React.FC = () => {
         <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
           <Header />
 
-          {/* Central interactive card (ergonomically bounded for inputs & avatar) */}
+          {/* Central interactive card */}
           <section className="w-full mt-3 flex justify-center">
             <HomeCard
               onPlayPublic={() => {
                 showNotification("Quick matchmaking queued! Real-time rooms connect in Phase 5.");
               }}
               onCreatePrivateRoom={() => {
-                showNotification("Ready for Phase 2: Private Room Configuration & Link Generation!");
+                setIsCreateRoomOpen(true);
               }}
             />
           </section>
         </div>
 
-        {/* Section 2: How to Play (spacious 3-step grid across tablets & desktop) */}
+        {/* Section 2: How to Play */}
         <section id="rules" className="w-full">
           <HowToPlay />
         </section>
 
-        {/* Section 3: Game Features: Made for Playing Together */}
+        {/* Section 3: Game Features */}
         <div className="w-full">
           <Features />
         </div>
@@ -71,6 +91,13 @@ export const App: React.FC = () => {
 
       {/* Full-width Footer */}
       <Footer />
+
+      {/* Phase 2: Create Private Room Modal */}
+      <CreateRoomModal
+        isOpen={isCreateRoomOpen}
+        onClose={() => setIsCreateRoomOpen(false)}
+        onEnterLobby={handleEnterLobby}
+      />
     </div>
   );
 };
