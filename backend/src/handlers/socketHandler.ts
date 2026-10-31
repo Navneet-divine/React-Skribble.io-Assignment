@@ -398,7 +398,13 @@ export function registerSocketHandlers(io: Server) {
 
     // 2. Room Joining & Reconnection
     socket.on('room:join', ({ roomId, player }: { roomId: string; player: Partial<Player> }, callback) => {
-      const normalizedRoomId = roomId.trim().toUpperCase();
+      if (!roomId || typeof roomId !== 'string') {
+        if (typeof callback === 'function') {
+          callback({ success: false, error: 'Invalid room code.' });
+        }
+        return;
+      }
+      const normalizedRoomId = roomId.trim().toUpperCase().slice(0, 10);
       const room = rooms.get(normalizedRoomId);
 
       if (!room) {
@@ -667,6 +673,8 @@ export function registerSocketHandlers(io: Server) {
       if (!room || room.status !== 'drawing') return;
 
       if (room.currentDrawerId !== mapping.playerId) return;
+      if (!stroke || !Array.isArray(stroke.points) || stroke.points.length > 2000) return;
+      if (room.strokes.length >= 5000) return;
 
       room.strokes.push(stroke);
       socket.to(mapping.roomId).emit('draw:stroke', stroke);
@@ -707,7 +715,8 @@ export function registerSocketHandlers(io: Server) {
       const sender = room.players.get(mapping.playerId);
       if (!sender) return;
 
-      const trimmed = text.trim();
+      if (!text || typeof text !== 'string') return;
+      const trimmed = text.trim().slice(0, 250);
       if (!trimmed) return;
 
       const normGuess = normalizeAnswer(trimmed);
