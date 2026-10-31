@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { type DrawingStroke, type DrawingTool, type StrokeSize, type NormalizedPoint } from '../types/game';
-import { Pencil, Eye, PaintBucket } from 'lucide-react';
+import { Paintbrush, Eraser, Eye, PaintBucket } from 'lucide-react';
 
 function hexToRgba(hex: string): [number, number, number, number] {
   let c = hex.replace('#', '');
@@ -591,10 +591,12 @@ function getBucketCursorPng(color: string): string {
       {/* Drawer active tool watermark tag */}
       {isDrawer && (
         <div className="pointer-events-none absolute bottom-3 left-3 bg-slate-900/70 backdrop-blur-sm text-slate-300 border border-slate-700/60 px-2.5 py-1 rounded-lg text-[10px] font-medium flex items-center gap-1.5 opacity-80">
-          {activeTool === 'fill' ? (
+          {activeTool === 'eraser' ? (
+            <Eraser className="w-3 h-3 text-indigo-400" />
+          ) : activeTool === 'fill' ? (
             <PaintBucket className="w-3 h-3 text-indigo-400" />
           ) : (
-            <Pencil className="w-3 h-3 text-amber-400" />
+            <Paintbrush className="w-3 h-3 text-amber-400" />
           )}
           <span>
             {activeTool === 'eraser'

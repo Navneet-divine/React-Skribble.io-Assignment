@@ -485,7 +485,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
     }
 
     if (turnEndInfo) {
-      const isMultiCol = (turnEndInfo.scores?.length || 0) > 4;
+      const count = turnEndInfo.scores?.length || 0;
+      const isMultiCol = count > 4;
+      const isHugeLobby = count > 10;
+
+      // Adaptive container width & grid columns scaling from 2 up to 20 players
+      const layoutClass = 
+        !isMultiCol
+          ? 'max-w-[260px] xs:max-w-[300px] sm:max-w-[340px] flex flex-col gap-1'
+          : isHugeLobby
+          ? 'max-w-[340px] xs:max-w-[440px] sm:max-w-[640px] lg:max-w-[840px] grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-2.5 sm:gap-x-5 gap-y-0.5 sm:gap-y-1'
+          : 'max-w-[330px] xs:max-w-[420px] sm:max-w-[480px] grid grid-cols-2 gap-x-3 sm:gap-x-6 gap-y-1';
 
       return (
         <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-2 sm:p-4 text-center select-none animate-in fade-in duration-200 overflow-hidden">
@@ -499,14 +509,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
             {turnEndInfo.reason}
           </p>
 
-          {/* Players Turn Points List (Skribbl.io Adaptive 8-Player Layout) */}
+          {/* Players Turn Points List (Adaptive 2 to 20-Player Skribbl.io Layout) */}
           {turnEndInfo.scores && turnEndInfo.scores.length > 0 && (
             <div
-              className={`w-full ${
-                isMultiCol
-                  ? 'max-w-[330px] xs:max-w-[420px] sm:max-w-[480px] grid grid-cols-2 gap-x-3 sm:gap-x-6 gap-y-1'
-                  : 'max-w-[260px] xs:max-w-[300px] sm:max-w-[340px] flex flex-col gap-1'
-              } max-h-[140px] xs:max-h-[170px] sm:max-h-[280px] overflow-y-auto px-2 py-0.5`}
+              className={`w-full ${layoutClass} max-h-[140px] xs:max-h-[170px] sm:max-h-[300px] lg:max-h-[380px] overflow-y-auto px-2 py-0.5 scrollbar-thin scrollbar-thumb-slate-700/60`}
             >
               {turnEndInfo.scores.map((s) => {
                 const isLocal = s.username === username;

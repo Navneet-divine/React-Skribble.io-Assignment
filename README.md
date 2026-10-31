@@ -303,8 +303,10 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
     - Players who guessed the word receive emerald green score badges (e.g., `+300`, `+270`, `+240`).
     - Players who did not guess display a red `0` (matching Skribbl.io).
     - Includes player's circular avatar image for quick visual recognition.
-    - Local user is highlighted with a distinct `(You)` badge.
-  - **📱 Adaptive 8-Player Layout & Zero Mobile Clipping**: Automatically pivots to a balanced 2-column grid when room has more than 4 players, allowing 8 players (4 per column) to fit smoothly within short mobile canvas viewports (~190px) without vertical clipping or awkward scrolling, and expands elegantly on wide desktop canvases.
+  - **📱 Adaptive 2 to 20-Player Scaling & Zero Clipping**: Seamlessly scales from small duels up to full 20-player private games:
+    - **1–4 Players**: Single centered column.
+    - **5–10 Players**: Balanced 2-column grid (`grid-cols-2`), allowing 8 players (4 per column) to fit smoothly within short mobile canvas viewports (~190px) without vertical clipping or forced scrolling.
+    - **11–20 Players**: Automatically scales to **3 columns** on tablets and **4 columns** on desktop (`lg:grid-cols-4`, max 5 players per column), allowing all 20 players to fit on screen simultaneously with smooth, compact scrolling on smaller mobile viewports.
   - **4.5-Second Reveal Window**: Provides an optimal reveal duration matching Skribbl.io pacing before transitioning to the next drawer.
 - **🔄 Skribbl.io Centered Round Transition Banner ("Round X of Y")**
   - **Inter-Round Celebration**: When all players finish their turn in a round, the game transitions seamlessly into the next round (e.g., Round 1 $\to$ Round 2).
