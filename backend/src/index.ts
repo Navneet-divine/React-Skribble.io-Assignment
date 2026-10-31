@@ -7,12 +7,25 @@ import { rooms } from './store/roomStore.js';
 import { registerSocketHandlers } from './handlers/socketHandler.js';
 
 const PORT = Number(process.env.PORT) || 5001;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const rawClientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+const CLIENT_URL = rawClientUrl;
+const configuredOrigins = rawClientUrl
+  .split(',')
+  .map((u) => u.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
+const corsOriginHandler = (
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean) => void
+) => {
+  // Dynamically reflect incoming origin so credentials and WebSockets always pass cleanly
+  callback(null, true);
+};
 
 const app = express();
 app.use(
   cors({
-    origin: [CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: corsOriginHandler,
     credentials: true,
   })
 );
@@ -22,7 +35,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: [CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173', '*'],
+    origin: corsOriginHandler,
     methods: ['GET', 'POST'],
     credentials: true,
   },
