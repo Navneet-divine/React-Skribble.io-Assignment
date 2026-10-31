@@ -351,12 +351,11 @@ export function registerSocketHandlers(io: Server) {
           return;
         }
 
-        if (settings.language !== undefined) {
-          room.settings.language = String(settings.language).trim();
-        }
-
-        // In public matchmaking rooms, all gameplay rules & custom words are strictly locked to defaults for fair play
+        // In public matchmaking rooms, all gameplay rules & language are strictly locked to defaults for fair play
         if (!room.isPublic) {
+          if (settings.language !== undefined) {
+            room.settings.language = String(settings.language).trim();
+          }
           if (settings.customWords !== undefined) {
             room.settings.customWords = sanitizeAndDeduplicateCustomWords(settings.customWords);
           }

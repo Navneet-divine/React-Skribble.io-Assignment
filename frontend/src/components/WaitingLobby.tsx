@@ -379,7 +379,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
 
           {/* 2. Language Dropdown (10 Supported Languages) */}
           <div className="relative inline-flex items-center">
-            {isHost ? (
+            {canEditPrivateSettings ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button

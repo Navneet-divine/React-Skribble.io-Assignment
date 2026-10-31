@@ -264,7 +264,7 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
   - **Distinct Badges**: Public games are highlighted with a `🌐 Public Match` emerald badge, while private custom games are designated with `🔒 Private Room`.
 - **🔒 Standardized Fair-Play Settings & Custom Word Exclusion**
   - **Locked Gameplay Defaults**: In public matchmaking, standard settings (8 players, 80s draw duration, 3 rounds, normal game mode, 3 word choices, 2 hints) are fixed and rendered as static badges to ensure an even playing field for all participants.
-  - **Host Language Selector Active**: The host retains the ability to switch the game dictionary language in public rooms.
+  - **Immutable Language Lock in Public Matches**: The public room language is strictly locked to the language selected on the homepage prior to matchmaking, preventing pool fragmentation or mid-game dictionary conflicts. The language dropdown remains exclusively customizable by hosts in Private Rooms.
   - **Democratic Player Status**: In public matchmaking, all participants appear with equal status ("Ready") without crown or "Room Host" badges, and player kick authority is disabled. Host crowns and kick privileges are reserved exclusively for Private Rooms.
   - **Complete Custom Word Exclusion**: The custom words configuration card is completely omitted in public games on both mobile and desktop viewports, and the backend rejects custom words on public rooms, eliminating spoiler risks or unfair advantages. Private rooms retain the full custom words suite.
 - **🔒 Dedicated Private Room Separation**
@@ -313,6 +313,24 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
   - **Prominent Canvas Announcement**: Displays a bold centered card announcing `Round 2` (*"Round 2 of 3"*) with an celebratory audio chime.
   - **Pacing Buffer**: Pauses for 2.5 seconds allowing all participants to recognize the round advancement before the new drawer is presented with word choices.
   - **Authoritative Turn Scoring**: Backend tracks dedicated `turnScore` per player, resetting at each turn's onset while continuously accumulating overall match scores.
+
+---
+
+### Phase 14: Mobile Polish, Matchmaking Integrity & Clean Modal Lifecycles ✅
+- **🌐 Language-Isolated Public Matchmaking & Setting Immutability**
+  - **Fair-Play Public Match Integrity**: Public matchmaking rooms strictly lock language, draw times, and round settings to fair-play defaults.
+  - **Immutable Public Language Badge**: In public lobbies, the language pill displays as a clean read-only badge (`🌐 🇮🇳 Hindi`), preventing accidental room mutation and pool fragmentation.
+  - **Single Matchmaking Pool**: Players select their language on the homepage and click *"Play!"*. All players selecting that language automatically congregate into the same active or waiting public match.
+  - **Private Room Freedom**: Private rooms retain 100% full host customization across all 10 language dictionaries and gameplay rules.
+  - **Real-Time Late Joiner Support**: Incoming players joining active games immediately receive live stroke history, active turn timer ticks, and masked word blanks.
+- **🔄 Clean Modal Lifecycle & Stale Room Prevention**
+  - **Create Room Modal Auto-Reset**: Opening the modal automatically resets `createdRoom` to `null`, ensuring hosts always land on Step 1 (fresh room configuration form) rather than stale "Private Room Ready!" modals.
+  - **Join Room Auto-Clear**: Automatically purges previous room codes from the input upon opening without an invite link, and resets input state upon successful join.
+- **📱 Pixel-Perfect Mobile Toolbar & Settings Alignment**
+  - **Drawing Toolbar Containment**: Top row (`Tools`, `Stroke Sizes`, `Undo`, and `Clear`) compacts dynamically on small viewports down to 320px with square icon buttons, preventing the Clear/Delete icon from overflowing past screen borders.
+  - **Single-Row Settings Alignment**: Settings badges (`3 Choices`, `Normal Mode`, `2 Letters Max`) enforce `whitespace-nowrap`, while Word Choices (1–5) and Hints (0–5) use dedicated CSS grids keeping all options aligned in single neat horizontal rows.
+- **🎨 Canvas Active Tool Watermark Synchronization**
+  - In-canvas active tool indicator badge dynamically synchronizes 1:1 with the selected toolbar tool (`Paintbrush` for Brush, `PaintBucket` for Fill Bucket, and `Eraser` for Eraser).
 
 ---
 
