@@ -36,10 +36,15 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
   const [isJoining, setIsJoining] = useState(false);
 
   React.useEffect(() => {
-    if (isOpen && typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const r = params.get('room');
-      if (r) setRoomCode(r);
+    if (isOpen) {
+      setError(null);
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const r = params.get('room');
+        setRoomCode(r || '');
+      } else {
+        setRoomCode('');
+      }
     }
   }, [isOpen]);
 
@@ -77,6 +82,8 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
 
       if (res && res.success && res.room) {
         syncRoomData(res.room, effectiveUsername);
+        setRoomCode('');
+        setError(null);
         onSuccess(cleaned);
         onClose();
       } else if (res && !res.success) {
@@ -84,11 +91,15 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
       } else {
         // Fallback to local
         joinRoom(cleaned, { username: effectiveUsername, avatar }, false);
+        setRoomCode('');
+        setError(null);
         onSuccess(cleaned);
         onClose();
       }
     } catch {
       joinRoom(cleaned, { username: effectiveUsername, avatar }, false);
+      setRoomCode('');
+      setError(null);
       onSuccess(cleaned);
       onClose();
     } finally {

@@ -80,6 +80,14 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   const [createdRoom, setCreatedRoom] = useState<RoomInfo | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
 
+  // Whenever modal opens, always reset createdRoom so it opens directly on Step 1 (Room Creation Settings Form)
+  useEffect(() => {
+    if (isOpen) {
+      setCreatedRoom(null);
+      setHasCopied(false);
+    }
+  }, [isOpen]);
+
   // Parse, deduplicate, and validate custom words (comma & newline, max 100 words, max 32 chars, max 20k chars)
   const parsedWords = (() => {
     const clamped = customWordsInput.slice(0, 20000);
@@ -206,11 +214,10 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                       key={r}
                       type="button"
                       onClick={() => setRounds(r)}
-                      className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        rounds === r
+                      className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${rounds === r
                           ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-2 ring-indigo-400/50'
                           : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
-                      }`}
+                        }`}
                     >
                       {r} {r === 3 && <span className="text-[10px] font-normal opacity-80">(Default)</span>}
                     </button>
@@ -230,11 +237,10 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                       key={t.value}
                       type="button"
                       onClick={() => setDrawTime(t.value)}
-                      className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        drawTime === t.value
+                      className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${drawTime === t.value
                           ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20 ring-2 ring-amber-400/60'
                           : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
-                      }`}
+                        }`}
                     >
                       {t.label}
                     </button>
@@ -254,11 +260,10 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                       key={p}
                       type="button"
                       onClick={() => setMaxPlayers(p)}
-                      className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        maxPlayers === p
+                      className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${maxPlayers === p
                           ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-400/50'
                           : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
-                      }`}
+                        }`}
                     >
                       {p} {p === 8 && <span className="text-[10px] font-normal opacity-80">(Standard)</span>}
                     </button>
@@ -283,11 +288,10 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                       key={m.value}
                       type="button"
                       onClick={() => setGameMode(m.value)}
-                      className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex flex-col gap-1 ${
-                        gameMode === m.value
+                      className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex flex-col gap-1 ${gameMode === m.value
                           ? 'bg-fuchsia-600/15 border-fuchsia-500 ring-2 ring-fuchsia-500/40 shadow-md'
                           : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/60 text-slate-300 hover:text-white'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-white flex items-center gap-1.5">
@@ -325,11 +329,10 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                       key={c}
                       type="button"
                       onClick={() => setWordCount(c)}
-                      className={`h-9 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center leading-none ${
-                        wordCount === c
+                      className={`h-9 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center leading-none ${wordCount === c
                           ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30 ring-2 ring-cyan-400/50'
                           : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
-                      }`}
+                        }`}
                     >
                       <span>{c}</span>
                       {c === 3 && <span className="text-[9px] font-normal opacity-80 mt-0.5">Default</span>}
@@ -355,8 +358,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                     {gameMode === 'hidden'
                       ? 'Disabled in Hidden'
                       : hints === 0
-                      ? 'No Hints'
-                      : `${hints} Letters Max`}
+                        ? 'No Hints'
+                        : `${hints} Letters Max`}
                   </span>
                 </div>
                 <div className="grid grid-cols-6 gap-1 sm:gap-2">
@@ -368,13 +371,12 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                         type="button"
                         disabled={isDisabled}
                         onClick={() => setHints(h)}
-                        className={`h-9 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center leading-none ${
-                          isDisabled
+                        className={`h-9 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center leading-none ${isDisabled
                             ? 'opacity-40 cursor-not-allowed bg-slate-800/40 text-slate-500 border border-slate-800'
                             : hints === h
-                            ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30 ring-2 ring-violet-400/50'
-                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
-                        }`}
+                              ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30 ring-2 ring-violet-400/50'
+                              : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
+                          }`}
                       >
                         <span>{h}</span>
                         {h === 2 && !isDisabled && <span className="text-[9px] font-normal opacity-80 mt-0.5">Default</span>}
@@ -387,8 +389,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                   {gameMode === 'hidden'
                     ? '🔒 Letter hints are disabled in Hidden Mode. Guessers must deduce solely from drawing.'
                     : hints === 0
-                    ? 'No letter hints will be revealed to guessers.'
-                    : `Progressively reveals up to ${hints} letter${hints > 1 ? 's' : ''} during the turn timer.`}
+                      ? 'No letter hints will be revealed to guessers.'
+                      : `Progressively reveals up to ${hints} letter${hints > 1 ? 's' : ''} during the turn timer.`}
                 </p>
               </div>
 
@@ -416,18 +418,16 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                           setRoomLanguage(lang.code);
                           setLanguage(lang.code);
                         }}
-                        className={`py-2 px-1.5 rounded-xl text-xs font-semibold flex flex-col items-center justify-center gap-0.5 border transition-all cursor-pointer ${
-                          isSelected
+                        className={`py-2 px-1.5 rounded-xl text-xs font-semibold flex flex-col items-center justify-center gap-0.5 border transition-all cursor-pointer ${isSelected
                             ? 'bg-sky-600 text-white border-sky-400 shadow-md shadow-sky-600/25 ring-1 ring-sky-300'
                             : 'bg-slate-800/80 text-slate-300 border-slate-700/60 hover:border-slate-600 hover:bg-slate-800'
-                        }`}
+                          }`}
                       >
                         <span className="text-lg leading-none">{lang.flag}</span>
                         <span className="truncate text-[11px] font-bold">{lang.name}</span>
                         <span
-                          className={`text-[10px] truncate ${
-                            isSelected ? 'text-sky-100 font-medium' : 'text-slate-400'
-                          }`}
+                          className={`text-[10px] truncate ${isSelected ? 'text-sky-100 font-medium' : 'text-slate-400'
+                            }`}
                         >
                           {lang.nativeName}
                         </span>
@@ -482,13 +482,12 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                       type="button"
                       disabled={parsedWords.length === 0}
                       onClick={() => setOnlyCustomWords(false)}
-                      className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                        parsedWords.length === 0
+                      className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${parsedWords.length === 0
                           ? 'opacity-40 cursor-not-allowed bg-slate-900/50 border-slate-800'
                           : !onlyCustomWords
-                          ? 'bg-indigo-600/20 border-indigo-500/80 text-white shadow-sm'
-                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 cursor-pointer'
-                      }`}
+                            ? 'bg-indigo-600/20 border-indigo-500/80 text-white shadow-sm'
+                            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 cursor-pointer'
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
@@ -508,13 +507,12 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                       type="button"
                       disabled={parsedWords.length === 0}
                       onClick={() => setOnlyCustomWords(true)}
-                      className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                        parsedWords.length === 0
+                      className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${parsedWords.length === 0
                           ? 'opacity-40 cursor-not-allowed bg-slate-900/50 border-slate-800'
                           : onlyCustomWords
-                          ? 'bg-indigo-600/20 border-indigo-500/80 text-white shadow-sm'
-                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 cursor-pointer'
-                      }`}
+                            ? 'bg-indigo-600/20 border-indigo-500/80 text-white shadow-sm'
+                            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 cursor-pointer'
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
@@ -591,11 +589,10 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyLink}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-                    hasCopied
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${hasCopied
                       ? 'bg-emerald-500 text-slate-950'
                       : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm'
-                  }`}
+                    }`}
                 >
                   {hasCopied ? (
                     <>
@@ -673,7 +670,9 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 type="button"
                 onClick={() => {
                   if (onEnterLobby) {
-                    onEnterLobby(createdRoom);
+                    const roomToEnter = createdRoom;
+                    setCreatedRoom(null);
+                    onEnterLobby(roomToEnter);
                   } else {
                     alert(`Entering waiting lobby for ${createdRoom.id} as host: ${username || 'Host'}! (Phase 3 Lobby Ready)`);
                     handleResetAndClose();
