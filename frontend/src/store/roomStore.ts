@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { type RoomSettings, type RoomInfo, type LobbyPlayer } from '../types/room';
 import { type AvatarConfig, AVATAR_PALETTES } from '../types/game';
+import { soundManager } from '../lib/soundManager';
 
 interface RoomState {
   currentRoom: RoomInfo | null;
@@ -152,6 +153,7 @@ export const useRoomStore = create<RoomState>()(
 
   kickPlayer: (playerId: string) => {
     if (!get().isHost) return;
+    soundManager.playPlayerLeave();
     set((state) => ({
       players: state.players.filter((p) => p.id !== playerId),
     }));
@@ -189,6 +191,7 @@ export const useRoomStore = create<RoomState>()(
       joinedAt: Date.now(),
     };
 
+    soundManager.playPlayerJoin();
     set({
       players: [...players, mockPlayer],
     });

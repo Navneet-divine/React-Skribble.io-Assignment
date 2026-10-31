@@ -31,6 +31,22 @@ export function generateRoomCode(): string {
   return `DOODLE-${code}`;
 }
 
+export function serializePlayer(p: any) {
+  return {
+    id: p.id,
+    socketId: p.socketId,
+    username: p.username,
+    avatar: p.avatar,
+    score: p.score ?? 0,
+    isHost: Boolean(p.isHost),
+    isReady: Boolean(p.isReady),
+    isDrawing: Boolean(p.isDrawing),
+    hasGuessed: Boolean(p.hasGuessed),
+    joinedAt: p.joinedAt,
+    isDisconnected: Boolean(p.isDisconnected),
+  };
+}
+
 /**
  * Convert Room map to a JSON-serializable payload for Socket broadcasts.
  * Never broadcasts the unrevealed secret word during choosing or drawing.
@@ -44,19 +60,7 @@ export function serializeRoom(room: Room) {
     isPublic: Boolean(room.isPublic),
     settings: room.settings,
     status: room.status,
-    players: Array.from(room.players.values()).map((p) => ({
-      id: p.id,
-      socketId: p.socketId,
-      username: p.username,
-      avatar: p.avatar,
-      score: p.score ?? 0,
-      isHost: Boolean(p.isHost),
-      isReady: Boolean(p.isReady),
-      isDrawing: Boolean(p.isDrawing),
-      hasGuessed: Boolean(p.hasGuessed),
-      joinedAt: p.joinedAt,
-      isDisconnected: Boolean(p.isDisconnected),
-    })),
+    players: Array.from(room.players.values()).map(serializePlayer),
     currentRound: room.currentRound,
     totalRounds: room.totalRounds,
     currentDrawerId: room.currentDrawerId,

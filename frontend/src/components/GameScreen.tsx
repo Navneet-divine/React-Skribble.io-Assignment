@@ -27,6 +27,7 @@ import {
 import { Trophy, Sparkles } from 'lucide-react';
 import { SpoilerWarningModal } from './SpoilerWarningModal';
 import { GameOverModal } from './GameOverModal';
+import { soundManager } from '../lib/soundManager';
 
 interface GameScreenProps {
   onLeaveGame: () => void;
@@ -273,6 +274,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
 
     // 10. Turn ended announcement
     const handleTurnEnded = ({ word, reason, players: updatedPlayers }: { word: string; reason: string; players: any[] }) => {
+      soundManager.playTurnEnd();
       setTurnEndInfo({ word, reason });
       setDrawerSecretWord('');
       setIsHiddenWord(false);
@@ -294,6 +296,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
 
     // 11. Game Ended (Match complete)
     const handleGameEnded = ({ players: endPlayers }: { players: any[] }) => {
+      soundManager.playGameStart();
       if (Array.isArray(endPlayers)) {
         const mapped = endPlayers.map((p: any) => ({
           id: p.id,

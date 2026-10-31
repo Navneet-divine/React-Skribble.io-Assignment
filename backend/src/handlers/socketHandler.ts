@@ -528,6 +528,7 @@ export function registerSocketHandlers(io: Server) {
 
       // Broadcast updated room state and announce player
       io.to(normalizedRoomId).emit('room:data', serializeRoom(room));
+      socket.to(normalizedRoomId).emit('player:joined', { playerId: newPlayer.id, username: newPlayer.username });
       io.to(normalizedRoomId).emit('chat:message', {
         id: `sys-${Date.now()}`,
         senderName: 'System',
@@ -812,6 +813,9 @@ export function registerSocketHandlers(io: Server) {
         console.log(`🧹 Room ${room.id} cleaned up (all players left)`);
         return;
       }
+
+      // Notify remaining players in the room that a player departed
+      io.to(room.id).emit('player:left', { playerId, username: departingName });
 
       // 2. Reassign host if host left (Private Rooms only)
       let newlyPromotedHost: Player | null = null;

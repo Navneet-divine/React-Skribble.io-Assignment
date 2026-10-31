@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { rooms, socketToRoom } from '../store/roomStore.js';
-import { serializeRoom, getMaskedWord } from './roomUtils.js';
+import { serializeRoom, serializePlayer, getMaskedWord } from './roomUtils.js';
 import { generateWordChoices } from '../constants/words.js';
 
 /**
@@ -26,7 +26,7 @@ export function startNextTurn(io: Server, roomId: string) {
       const rankedPlayers = Array.from(room.players.values()).sort((a, b) => (b.score || 0) - (a.score || 0));
 
       io.to(roomId).emit('game:ended', {
-        players: rankedPlayers,
+        players: rankedPlayers.map(serializePlayer),
         roomId: room.id,
       });
 
@@ -342,7 +342,7 @@ export function endTurn(io: Server, roomId: string, reason: string) {
   io.to(roomId).emit('turn:ended', {
     word: room.currentWord,
     reason: formattedReason,
-    players: Array.from(room.players.values()),
+    players: Array.from(room.players.values()).map(serializePlayer),
   });
 
   io.to(roomId).emit('chat:message', {

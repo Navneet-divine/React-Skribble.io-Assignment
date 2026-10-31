@@ -273,12 +273,35 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 
 ---
 
+### Phase 12: Real-Time Web Audio API Sound Engine & Urgent Timer Ticking ✅
+- **🔊 Zero-Latency Synthesized Web Audio API Engine (`soundManager.ts`)**
+  - **100% Asset-Free Audio Synthesis**: Employs browser-native `AudioContext`, `OscillatorNode`, and `GainNode` with exponential volume decays. Requires zero external audio files (`.mp3`/`.ogg`), generates zero HTTP asset traffic, avoids 404s or CDN failures, and works flawlessly offline.
+  - **Autoplay Compliance**: Automatically resumes suspended audio contexts on initial user interaction to comply with modern browser autoplay safety policies.
+- **⏱️ Skribbl.io Mechanical Watch Timer Ticking (`playTimerTick`)**
+  - **Urgent Countdown Atmosphere**: Automatically triggers when a turn has **10 seconds or fewer remaining** (`timeLeft <= 10`).
+  - **Realistic Mechanical Tick-Tock**: Alternates between high-frequency tick (1200 Hz) and low-frequency tock (900 Hz) for authentic grandfather / wristwatch clock acoustic modeling.
+  - **Double-Time Final Panic**: When **3 seconds or fewer remain** (`timeLeft <= 3`), tick cadence doubles in urgency to elevate final-second tension.
+  - **Deduplication Guard**: Incorporates a timestamp and second guard to guarantee exactly one crisp tick per elapsed second without audio overlapping.
+- **🎉 Rich Skribbl.io In-Game Sound Effects Suite**
+  - **🚀 Game Launch Fanfare (`playGameStart`)**: Bright ascending 4-note major arpeggio ($C_5 \to E_5 \to G_5 \to C_6$) played when the room transitions from lobby to game or when entering the match podium.
+  - **🔔 Drawer Turn Alert (`playYourTurn`)**: Friendly two-tone bell chime ($F_5 \to A_5$) alerting the designated drawer when the word selection modal opens.
+  - **✨ Correct Guess Sparkle Chime (`playCorrectGuess`)**: Uplifting celestial arpeggio ($G_5 \to B_5 \to D_6 \to G_6$) broadcast when any player successfully cracks the secret word.
+  - **📉 Turn End Resolution (`playTurnEnd`)**: Descending 3-note melodic resolution ($G_5 \to E_5 \to C_5$) sounding when the drawing time expires or all players guess the word.
+  - **🚪 Player Departure Cue (`playPlayerLeave`)**: Gentle descending two-tone pop ($E_4 \to C_4$) alerting participants when a player leaves the room, gets kicked, or disconnects.
+  - **👋 Player Arrival Cue (`playPlayerJoin`)**: Cheerful ascending pop ($G_4 \to C_5$) welcoming newly connected teammates into the waiting lobby or live game.
+- **🎚️ Global Sound State & Dual In-Game Mute Toggles (`soundStore.ts`)**
+  - **Persistent Audio Settings**: Managed through Zustand with `persist` middleware (`doodlesync-sound-settings`), saving user volume preferences across refreshes and matches.
+  - **Global & HUD Controls**: Accessible from both the application footer and a dedicated audio toggle button built right into the in-game header HUD next to the timer.
+
+---
+
 ## 🛠️ Tech Stack
 
 ### Frontend
 - **Framework**: [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
 - **Bundler**: [Vite 8](https://vitejs.dev/)
 - **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **Audio Engine**: Native Browser [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
 - **UI Components**: [shadcn/ui](https://ui.shadcn.com/) (`@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`)
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **State Management**: [Zustand](https://zustand.docs.pmnd.rs/) with `persist` middleware
@@ -308,7 +331,7 @@ React-Skribble.io-Assignment/
 │   │   │   ├── DrawingTools.tsx      # 2-row toolbar: brush/fill/eraser, sizes, undo, clear & 16 colors
 │   │   │   ├── Features.tsx          # "Made for Playing Together" cards
 │   │   │   ├── Footer.tsx            # Audio mute, credits & shadcn modals
-│   │   │   ├── GameHeader.tsx        # Clamped round tracker, word mask & urgency timer
+│   │   │   ├── GameHeader.tsx        # Clamped round tracker, word mask & urgency timer with tick audio
 │   │   │   ├── GameOverModal.tsx     # Match completion podium with true rankings & winner crown
 │   │   │   ├── GameScreen.tsx        # Main game arena (Desktop 3-col & Mobile split)
 │   │   │   ├── GuessChat.tsx         # Live chat feed with deduplication & Guessed badge
@@ -322,8 +345,8 @@ React-Skribble.io-Assignment/
 │   │   │   ├── WaitingLobby.tsx      # Lobby screen with live shadcn header settings & roster
 │   │   │   └── WordChoiceModal.tsx   # 3 word cards with live 15s server countdown
 │   │   ├── data/                     # 50+ worldwide countries catalog
-│   │   ├── lib/                      # Utility functions & singleton Socket.IO client
-│   │   ├── store/                    # Zustand stores (playerStore & roomStore)
+│   │   ├── lib/                      # Utility functions, soundManager & singleton Socket.IO client
+│   │   ├── store/                    # Zustand stores (playerStore, roomStore & soundStore)
 │   │   ├── types/                    # TypeScript interfaces (game.ts & room.ts)
 │   │   ├── App.tsx                   # App routing, one-time invite alerts & URL sync
 │   │   ├── index.css                 # Tailwind v4 theme & Google Fonts

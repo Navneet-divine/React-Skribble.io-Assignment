@@ -19,6 +19,7 @@ import {
   matchmakePublicRoom,
   leaveMultiplayerRoom,
 } from './lib/socket';
+import { soundManager } from './lib/soundManager';
 
 // URL query parameter helpers for seamless refresh and shareable links
 const updateUrlWithRoom = (roomId: string) => {
@@ -142,8 +143,12 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleRoomData = (data: any) => {
       const username = usePlayerStore.getState().username;
+      const prevGameStatus = useRoomStore.getState().gameStatus;
       useRoomStore.getState().syncRoomData(data, username);
       if (data.status === 'choosing' || data.status === 'drawing' || data.status === 'round_end' || data.status === 'game_end') {
+        if (prevGameStatus === 'lobby' && (data.status === 'choosing' || data.status === 'drawing')) {
+          soundManager.playGameStart();
+        }
         setScreen('game');
         setGameStatus('playing');
       } else if (data.status === 'lobby') {
@@ -170,12 +175,24 @@ export const App: React.FC = () => {
       setGameStatus('lobby');
     };
 
+    const handlePlayerLeft = () => {
+      soundManager.playPlayerLeave();
+    };
+
+    const handlePlayerJoined = () => {
+      soundManager.playPlayerJoin();
+    };
+
     socket.on('room:data', handleRoomData);
     socket.on('game:victory_default', handleVictoryDefault);
+    socket.on('player:left', handlePlayerLeft);
+    socket.on('player:joined', handlePlayerJoined);
 
     return () => {
       socket.off('room:data', handleRoomData);
       socket.off('game:victory_default', handleVictoryDefault);
+      socket.off('player:left', handlePlayerLeft);
+      socket.off('player:joined', handlePlayerJoined);
     };
   }, [setGameStatus]);
 
@@ -200,6 +217,7 @@ export const App: React.FC = () => {
       showNotification("⚠️ At least 2 players are required to start the game!");
       return;
     }
+    soundManager.playGameStart();
     setGameStatus('playing');
     setScreen('game');
     showNotification("🚀 Game arena started!");

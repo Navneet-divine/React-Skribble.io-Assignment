@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { type ChatMessage } from '../types/game';
 import { Send, Sparkles, Flame, CheckCircle2, MessageSquare, Ban } from 'lucide-react';
 import { SpoilerWarningModal } from './SpoilerWarningModal';
+import { soundManager } from '../lib/soundManager';
 
 export interface GuessChatInputProps {
   onSendMessage: (text: string) => void;
@@ -126,6 +127,7 @@ export const GuessChat: React.FC<GuessChatProps> = ({
 }) => {
   const [localSpoilerOpen, setLocalSpoilerOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastSoundMessageIdRef = useRef<string | null>(null);
 
   const isWarningOpen = localSpoilerOpen || showSpoilerModal;
 
@@ -136,9 +138,16 @@ export const GuessChat: React.FC<GuessChatProps> = ({
     }
   };
 
-  // Auto-scroll to bottom on new message
+  // Auto-scroll to bottom on new message and play chime on correct guess
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.type === 'correct' && lastMsg.id !== lastSoundMessageIdRef.current) {
+        lastSoundMessageIdRef.current = lastMsg.id;
+        soundManager.playCorrectGuess();
+      }
+    }
   }, [messages]);
 
   return (

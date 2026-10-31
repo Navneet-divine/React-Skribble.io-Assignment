@@ -91,8 +91,10 @@ const GAME_RULES = [
   },
 ];
 
+import { useSoundStore } from '../store/soundStore';
+
 export const Footer: React.FC = () => {
-  const [muted, setMuted] = useState(false);
+  const { isMuted, toggleMute } = useSoundStore();
   const [activeModal, setActiveModal] = useState<ModalType>(null);
 
   const closeModal = () => setActiveModal(null);
@@ -106,16 +108,16 @@ export const Footer: React.FC = () => {
             <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={() => setMuted(!muted)}
+                onClick={toggleMute}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors cursor-pointer"
-                title={muted ? 'Unmute Sound' : 'Mute Sound'}
+                title={isMuted ? 'Unmute Sound' : 'Mute Sound'}
               >
-                {muted ? (
+                {isMuted ? (
                   <VolumeX className="w-4 h-4 text-rose-400" />
                 ) : (
                   <Volume2 className="w-4 h-4 text-indigo-400" />
                 )}
-                <span className="text-xs font-medium">Audio {muted ? 'Off' : 'On'}</span>
+                <span className="text-xs font-medium">Audio {isMuted ? 'Off' : 'On'}</span>
               </button>
 
               <span className="text-slate-600 hidden md:inline">•</span>

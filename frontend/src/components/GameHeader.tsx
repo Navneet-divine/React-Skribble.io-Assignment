@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { Clock, RotateCcw, LogOut, Sparkles, Pencil, EyeOff, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Clock, RotateCcw, LogOut, Sparkles, Pencil, EyeOff, Layers, Volume2, VolumeX } from 'lucide-react';
 import { type GameMode } from '../types/room';
+import { soundManager } from '../lib/soundManager';
+import { useSoundStore } from '../store/soundStore';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +42,16 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   hidden = false,
 }) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const { isMuted, toggleMute } = useSoundStore();
+
+  // Watch timer ticking sound on final 10 seconds of turn
+  useEffect(() => {
+    if (timeLeft <= 10 && timeLeft > 0) {
+      soundManager.playTimerTick(timeLeft);
+    } else if (timeLeft > 10) {
+      soundManager.resetTimerTick();
+    }
+  }, [timeLeft]);
 
   // Determine timer urgency state
   const getTimerStyles = () => {
@@ -279,8 +291,21 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
           </span>
         ) : null}
 
-        {/* Right: Timer & Leave Button */}
+        {/* Right: Audio Toggle, Timer & Leave Button */}
         <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={toggleMute}
+            className="p-1.5 text-slate-400 hover:text-slate-200 bg-slate-800/60 border border-slate-700/70 rounded-xl transition-all cursor-pointer shrink-0"
+            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+          >
+            {isMuted ? (
+              <VolumeX className="w-3.5 h-3.5 text-rose-400" />
+            ) : (
+              <Volume2 className="w-3.5 h-3.5 text-indigo-400" />
+            )}
+          </button>
+
           <div className={`flex items-center gap-1 px-2 py-1 rounded-xl border shadow-sm shrink-0 ${timerStyle.container}`}>
             <Clock className={`w-3 h-3 shrink-0 ${timerStyle.text}`} />
             <div className="flex items-baseline font-mono text-xs font-black">
@@ -338,8 +363,21 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
           ) : null}
         </div>
 
-        {/* Right: Timer & Exit */}
+        {/* Right: Audio Toggle, Timer & Exit */}
         <div className="justify-self-end flex items-center justify-end gap-2 shrink-0 min-w-0">
+          <button
+            type="button"
+            onClick={toggleMute}
+            className="p-2 text-slate-400 hover:text-slate-200 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/80 rounded-xl transition-all cursor-pointer shrink-0"
+            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+          >
+            {isMuted ? (
+              <VolumeX className="w-4 h-4 text-rose-400" />
+            ) : (
+              <Volume2 className="w-4 h-4 text-indigo-400" />
+            )}
+          </button>
+
           <div
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-sm transition-all duration-300 shrink-0 ${timerStyle.container}`}
           >

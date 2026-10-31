@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { type WordChoice } from '../types/game';
 import { Sparkles, Clock, Check } from 'lucide-react';
+import { soundManager } from '../lib/soundManager';
 
 interface WordChoiceModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const WordChoiceModal: React.FC<WordChoiceModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setLocalTimeLeft(selectionDuration);
+      soundManager.playYourTurn();
     }
   }, [isOpen, selectionDuration]);
 
