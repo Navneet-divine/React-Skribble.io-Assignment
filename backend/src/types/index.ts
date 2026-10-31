@@ -43,7 +43,7 @@ export interface NormalizedPoint {
 export interface DrawingStroke {
   color: string;
   size: number;
-  tool: 'brush' | 'eraser';
+  tool: 'brush' | 'eraser' | 'fill';
   points: NormalizedPoint[];
 }
 

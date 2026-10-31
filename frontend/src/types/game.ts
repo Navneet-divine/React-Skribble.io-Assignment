@@ -15,7 +15,7 @@ export const AVATAR_PALETTES = [
   'fbcfe8',
 ];
 
-export type DrawingTool = 'brush' | 'eraser';
+export type DrawingTool = 'brush' | 'eraser' | 'fill';
 
 export type StrokeSize = 4 | 8 | 14 | 24;
 

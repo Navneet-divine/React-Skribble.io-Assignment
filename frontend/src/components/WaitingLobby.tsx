@@ -603,7 +603,9 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
                     >
                       <HelpCircle className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                       <span className="font-medium">
-                        {`${currentRoom.settings.hints ?? 2} Hints`}
+                        {currentRoom.settings.hints === 0
+                          ? '0 Hints'
+                          : `${currentRoom.settings.hints ?? 2} Hints`}
                       </span>
                       <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-indigo-400 shrink-0 transition-colors" />
                     </button>
@@ -630,7 +632,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-slate-300 shadow-xs">
                 <HelpCircle className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                 <span>
-                  {currentRoom.settings.gameMode === 'hidden'
+                  {currentRoom.settings.gameMode === 'hidden' || currentRoom.settings.hints === 0
                     ? 'No Hints'
                     : `${currentRoom.settings.hints ?? 2} Hints`}
                 </span>

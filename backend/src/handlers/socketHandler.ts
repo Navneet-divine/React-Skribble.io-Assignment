@@ -179,7 +179,8 @@ export function registerSocketHandlers(io: Server) {
           room.settings.wordCount = Math.min(5, Math.max(1, Number(settings.wordCount) || 3)) as WordCountOption;
         }
         if (settings.hints !== undefined) {
-          room.settings.hints = Math.min(5, Math.max(0, Number(settings.hints) || 2)) as HintsOption;
+          const parsed = Number(settings.hints);
+          room.settings.hints = Math.min(5, Math.max(0, isNaN(parsed) ? 2 : parsed)) as HintsOption;
         }
         if (settings.rounds !== undefined) {
           const r = Math.min(10, Math.max(2, Number(settings.rounds) || 3));

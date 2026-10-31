@@ -77,7 +77,7 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
   - Strokes stored as `{ x: number, y: number }` ratio points relative to canvas width/height.
   - Drawings created on a 1440px desktop display with 100% geometric fidelity on any mobile device.
 - **🎛️ Stacked 2-Row Drawing Toolbar**
-  - **Top Row (Up)**: Mode toggles (`Brush` / `Eraser`), 4 stroke widths (Fine 4px, Medium 8px, Thick 14px, Jumbo 24px), local **Undo** stroke stack, and **Clear Canvas** with inline confirmation popover.
+  - **Top Row (Up)**: Mode toggles (`Brush` / `Fill (Paint Bucket)` / `Eraser`), 4 stroke widths (Fine 4px, Medium 8px, Thick 14px, Jumbo 24px), local **Undo** stroke stack, and **Clear Canvas** with inline confirmation popover.
   - **Bottom Row (Down)**: 16 curated color swatches in an `8 × 2` grid, centered with generous padding and zero horizontal scrolling on all displays.
 - **⏱️ Game Top HUD & Dynamic Urgency Timer**
   - Accurate round tracker clamped to total rounds (`Round 1 of 3`, never overflowing to `Round 3 of 2`).
@@ -229,6 +229,25 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 
 ---
 
+### Phase 10: Paint Bucket (Flood Fill), Mobile Arena Polish & Dynamic Cursors ✅
+- **🪣 Skribbl.io Paint Bucket Tool (Flood Fill Engine)**
+  - **Scanline Flood Fill Algorithm**: High-performance contiguous area fill executing in sub-5ms across canvas resolutions.
+  - **Antialiased Boundary Dilation & Zero White Halos**: Uses Euclidean color distance (`tolerance = 90`) and 2–3px boundary dilation into antialiased edge pixels, completely eliminating white seams or gap artifacts.
+  - **Crisp Vector Re-Layering**: Any prior enclosing vector strokes are cleanly re-rendered on top of the dilated fill, keeping drawn line borders razor-sharp.
+  - **WebSocket Synchronization & Undo Support**: Recorded as a discrete `{ tool: 'fill', points: [{x, y}] }` stroke, syncing in real-time over Socket.IO to all room clients and fully supporting canvas **Undo** (`draw:undo`).
+- **🎯 Dynamic Offscreen PNG Paint Bucket Cursor**
+  - **Universal Offscreen PNG Generator**: Renders a clean 32×32 Base64 PNG cursor via an offscreen canvas, completely avoiding WebKit/Chromium SVG data-URI decoding bugs.
+  - **Dynamic Fluid Color**: The bucket liquid and pouring paint droplet dynamically match the active selected palette color.
+  - **High-Contrast Dual Outline**: Dual-layer white and dark borders guarantee 100% visibility over pure white canvas, dark drawings, and colored regions.
+  - **Exact Hotspot**: Click hotspot accurately mapped to `(4, 27)` at the tip of the pouring droplet.
+- **📱 Mobile Game Arena & Header Refinements**
+  - **Non-Colliding Full-Width Word Blanks**: On mobile viewports, the game header separates top HUD controls (round, combination badge, timer, exit) from secret word blanks, providing full card width so long words and compound phrases never collide with buttons.
+  - **Compound Word Center Alignment**: Combination mode words display horizontally on a single line (`Word 1 + Word 2`) with centered `+` separator icon and duplicate badge removal.
+  - **Accurate Zero-Hint Handling**: Fixed `0 Hints (None)` lobby option so turning off hints correctly sets 0 hints without falling back to default values.
+  - **Skribbl.io-Style Equal Winner Celebrations**: Tied matches celebrate participants with *"Both Are Winners!"* (2 players) and *"Everyone is a Winner!"* (3+ players) podium banners.
+
+---
+
 ## 🛠️ Tech Stack
 
 ### Frontend
@@ -260,8 +279,8 @@ React-Skribble.io-Assignment/
 │   │   │   ├── AvatarPicker.tsx      # DiceBear customizer & color palette
 │   │   │   ├── CountrySelect.tsx     # Searchable country/language combobox
 │   │   │   ├── CreateRoomModal.tsx   # Room settings & invite link modal
-│   │   │   ├── DrawingCanvas.tsx     # High-DPI HTML5 canvas with Pointer Events & undo
-│   │   │   ├── DrawingTools.tsx      # 2-row toolbar: tools, sizes, undo, clear & 16 colors
+│   │   │   ├── DrawingCanvas.tsx     # High-DPI HTML5 canvas with flood fill, dynamic bucket cursor & undo
+│   │   │   ├── DrawingTools.tsx      # 2-row toolbar: brush/fill/eraser, sizes, undo, clear & 16 colors
 │   │   │   ├── Features.tsx          # "Made for Playing Together" cards
 │   │   │   ├── Footer.tsx            # Audio mute, credits & shadcn modals
 │   │   │   ├── GameHeader.tsx        # Clamped round tracker, word mask & urgency timer

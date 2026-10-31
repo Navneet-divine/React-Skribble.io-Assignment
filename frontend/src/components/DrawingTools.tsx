@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { type DrawingTool, type StrokeSize, PALETTE_COLORS, STROKE_SIZES } from '../types/game';
 import {
   Paintbrush,
+  PaintBucket,
   Eraser,
   Undo2,
   Trash2,
@@ -50,7 +51,7 @@ export const DrawingTools: React.FC<DrawingToolsProps> = ({
     <div className="relative w-full bg-slate-900/90 backdrop-blur-md border border-slate-800/90 rounded-2xl shadow-xl p-2.5 sm:p-3 flex flex-col gap-2">
       {/* TOP ROW (UP): Tools, Stroke Sizes, Undo & Clear */}
       <div className="w-full flex items-center justify-between gap-2">
-        {/* Left: Brush & Eraser */}
+        {/* Left: Brush, Fill & Eraser */}
         <div className="flex items-center gap-1 bg-slate-800/70 p-1 rounded-xl border border-slate-700/60 shrink-0">
           <button
             type="button"
@@ -64,6 +65,20 @@ export const DrawingTools: React.FC<DrawingToolsProps> = ({
           >
             <Paintbrush className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Brush</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelectTool('fill')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeTool === 'fill'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
+            }`}
+            title="Paint Bucket (Fill Area)"
+          >
+            <PaintBucket className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Fill</span>
           </button>
 
           <button

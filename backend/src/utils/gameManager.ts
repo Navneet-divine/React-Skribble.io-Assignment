@@ -32,11 +32,22 @@ export function startNextTurn(io: Server, roomId: string) {
 
       io.to(roomId).emit('room:data', serializeRoom(room));
 
-      const winner = rankedPlayers[0];
-      const isTie = rankedPlayers.length > 1 && (rankedPlayers[0].score || 0) === (rankedPlayers[1].score || 0);
-      const matchSummaryText = isTie
-        ? `🏆 Match Complete! It's a tie for 1st place with ${winner?.score || 0} pts!`
-        : `🏆 Match Complete! 👑 ${winner?.username || 'Player'} wins with ${winner?.score || 0} pts!`;
+      const topScore = rankedPlayers[0]?.score || 0;
+      const topWinners = rankedPlayers.filter((p) => (p.score || 0) === topScore);
+      const isMultipleWinners = topWinners.length > 1;
+
+      let matchSummaryText = '';
+      if (!isMultipleWinners) {
+        matchSummaryText = `🏆 Match Complete! 👑 ${rankedPlayers[0]?.username || 'Player'} wins with ${topScore} pts!`;
+      } else if (topWinners.length === rankedPlayers.length) {
+        if (rankedPlayers.length === 2) {
+          matchSummaryText = `🏆 Match Complete! 👑 Both players are winners with ${topScore} pts!`;
+        } else {
+          matchSummaryText = `🏆 Match Complete! 🎉 Everyone is a winner with ${topScore} pts!`;
+        }
+      } else {
+        matchSummaryText = `🏆 Match Complete! 👑 Winners: ${topWinners.map((w) => w.username).join(' & ')} with ${topScore} pts!`;
+      }
 
       io.to(roomId).emit('chat:message', {
         id: `sys-${Date.now()}`,

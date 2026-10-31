@@ -42,9 +42,38 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   if (!isOpen) return null;
 
   const sortedPlayers = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
-  const topPlayer = sortedPlayers[0];
-  const secondPlayer = sortedPlayers[1];
-  const isTie = sortedPlayers.length > 1 && (topPlayer?.score || 0) === (secondPlayer?.score || 0);
+  const topScore = sortedPlayers[0]?.score || 0;
+  const winners = sortedPlayers.filter((p) => (p.score || 0) === topScore);
+  const isMultipleWinners = winners.length > 1;
+  const isAllWinners = isMultipleWinners && winners.length === sortedPlayers.length;
+
+  let title = '';
+  let subtitle = '';
+
+  if (!isMultipleWinners) {
+    title = `👑 ${sortedPlayers[0]?.username || 'Player'} Wins!`;
+    subtitle = `Congratulations to ${sortedPlayers[0]?.username || 'the winner'} for scoring ${topScore} points!`;
+  } else if (isAllWinners) {
+    if (sortedPlayers.length === 2) {
+      title = '👑 Both Are Winners!';
+      subtitle = topScore === 0
+        ? 'Great game! Both players finished with equal scores — both are winners!'
+        : `Incredible game! Both players share 1st place with ${topScore} points!`;
+    } else {
+      title = '🎉 Everyone is a Winner!';
+      subtitle = topScore === 0
+        ? 'Fantastic match! All players finished with equal scores — everyone is a winner!'
+        : `Outstanding match! Everyone finished with ${topScore} points — everyone is a winner!`;
+    }
+  } else {
+    if (winners.length === 2) {
+      title = '👑 Both Players Are Winners!';
+      subtitle = `Congratulations to ${winners[0]?.username} and ${winners[1]?.username} for sharing 1st place with ${topScore} points!`;
+    } else {
+      title = '👑 Multiple Winners!';
+      subtitle = `Congratulations to all 1st place winners with ${topScore} points!`;
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300">
@@ -74,29 +103,25 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black text-white font-heading tracking-wide">
-            {isTie
-              ? "🤝 It's a Tie!"
-              : `👑 ${topPlayer?.username || 'Player'} Wins!`}
+            {title}
           </h2>
           <p className="text-xs sm:text-sm text-slate-300">
-            {isTie
-              ? `Incredible game! Both players tied for 1st place with ${topPlayer?.score || 0} points!`
-              : `Congratulations to ${topPlayer?.username || 'the winner'} for scoring ${topPlayer?.score || 0} points!`}
+            {subtitle}
           </p>
         </div>
 
         {/* Player Ranked Cards */}
         <div className="space-y-2 mb-6 max-h-[220px] overflow-y-auto pr-1">
           {sortedPlayers.map((player, idx) => {
-            const isFirst = idx === 0 || (isTie && (player.score || 0) === (topPlayer?.score || 0));
-            const isSecond = !isTie && idx === 1;
-            const isThird = !isTie && idx === 2;
+            const isWinner = (player.score || 0) === topScore;
+            const isSecond = !isWinner && (player.score || 0) === (sortedPlayers.find(p => (p.score || 0) < topScore)?.score ?? -1);
+            const isThird = !isWinner && !isSecond && idx === 2;
 
             return (
               <div
                 key={player.id || idx}
                 className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
-                  isFirst
+                  isWinner
                     ? 'bg-amber-500/15 border-amber-500/40 shadow-sm shadow-amber-500/10'
                     : 'bg-slate-800/60 border-slate-700/60'
                 }`}
@@ -107,10 +132,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                       src={getAvatarUrl(player.avatar)}
                       alt={player.username}
                       className={`w-10 h-10 rounded-full border bg-slate-800 object-cover ${
-                        isFirst ? 'border-amber-400' : 'border-slate-700'
+                        isWinner ? 'border-amber-400' : 'border-slate-700'
                       }`}
                     />
-                    {isFirst && (
+                    {isWinner && (
                       <span className="absolute -top-1 -right-1 p-0.5 bg-amber-400 rounded-full text-slate-950 shadow-sm">
                         <Crown className="w-3 h-3" />
                       </span>
@@ -122,9 +147,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                       <span className="text-sm font-bold text-white truncate font-heading">
                         {player.username}
                       </span>
-                      {isFirst ? (
+                      {isWinner ? (
                         <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/40">
-                          {isTie ? 'Tied 1st' : '👑 1st Place'}
+                          👑 Winner
                         </span>
                       ) : isSecond ? (
                         <span className="text-[10px] font-semibold text-slate-300 bg-slate-700/60 px-1.5 py-0.5 rounded border border-slate-600">
@@ -141,14 +166,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                       )}
                     </div>
                     <span className="text-[11px] text-slate-400">
-                      {isFirst ? (isTie ? 'Co-Champion' : 'Match Winner') : isSecond ? 'Runner Up' : `Rank #${idx + 1}`}
+                      {isWinner ? 'Winner' : isSecond ? 'Runner Up' : `Rank #${idx + 1}`}
                     </span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0 pl-2">
-                  <Medal className={`w-4 h-4 ${isFirst ? 'text-amber-400' : 'text-slate-400'}`} />
-                  <span className={`text-base font-black font-mono ${isFirst ? 'text-amber-300' : 'text-slate-200'}`}>
+                  <Medal className={`w-4 h-4 ${isWinner ? 'text-amber-400' : 'text-slate-400'}`} />
+                  <span className={`text-base font-black font-mono ${isWinner ? 'text-amber-300' : 'text-slate-200'}`}>
                     {player.score ?? 0}
                   </span>
                   <span className="text-[10px] text-slate-400 uppercase font-semibold">pts</span>
