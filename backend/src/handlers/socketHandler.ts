@@ -545,6 +545,20 @@ export function registerSocketHandlers(io: Server) {
         timestamp: Date.now(),
       });
 
+      // If room is public and currently waiting in lobby with at least 2 players, auto-start immediately!
+      if (room.isPublic && room.status === 'lobby' && room.players.size >= 2) {
+        console.log(`🚀 Public room ${room.id} reached ${room.players.size} players via room:join, auto-starting game!`);
+        room.drawerOrder = Array.from(room.players.keys()).sort(() => 0.5 - Math.random());
+        room.drawerIndex = 0;
+        room.currentRound = 1;
+        room.players.forEach((p) => {
+          p.score = 0;
+          p.hasGuessed = false;
+          p.isDrawing = false;
+        });
+        startNextTurn(io, room.id);
+      }
+
       // Synchronize canvas history for late joiners
       if (room.strokes.length > 0) {
         socket.emit('draw:history', { strokes: room.strokes });

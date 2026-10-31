@@ -331,7 +331,13 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
   - **Single-Row Settings Alignment**: Settings badges (`3 Choices`, `Normal Mode`, `2 Letters Max`) enforce `whitespace-nowrap`, while Word Choices (1–5) and Hints (0–5) use dedicated CSS grids keeping all options aligned in single neat horizontal rows.
 - **🎨 Canvas Active Tool & Watermark Synchronization**
   - In-canvas active tool indicator badge dynamically synchronizes 1:1 with the selected toolbar tool (`Paintbrush` for Brush, `PaintBucket` for Fill Bucket, and `Eraser` for Eraser).
-  - **Contextual Guesser Watermark ("Choosing Word" vs. "Watching Draw")**: Canvas watermark dynamically displays *"✨ [Drawer] is choosing a word..."* during the 15-second choosing countdown, seamlessly transitioning to *"👁️ Watching [Drawer] draw"* as soon as the word is selected and sketching begins.
+  - **Contextual Guesser Watermark ("Choosing Word" vs. "Watching Draw")**: Canvas watermark dynamically displays *"✨ [Username] is choosing a word..."* during the 15-second choosing countdown, seamlessly transitioning to *"👁️ Watching [Username] draw"* as soon as the word is selected and sketching begins.
+  - **Deterministic Choosing vs. Drawing Phase Lifecycle**: Powered by explicit server-synced `turn:choosing` and `turn:drawing` events alongside `isChoosingWord` state, preventing stuck choice states in zero-hint game modes (such as **Hidden Mode**).
+  - **Real Username Resolution (Zero "Drawer" Fallback)**: Automatically broadcasts and resolves the actual drawer's username (`currentDrawerName`) from the moment the turn begins, ensuring guessers always see the drawer's real name rather than generic fallbacks.
+  - **Collision-Free Clean HUD Layout**: Displays the choosing countdown directly inside the centered game header and canvas watermark, eliminating overlapping floating overlays.
+- **⚡ Automated Public Match Loop & Zero Manual Start Friction**
+  - **Autonomous Match Transitions**: Once a public game concludes (e.g. 3/3 rounds), players return to the waiting lobby where scores reset and a new game automatically launches after a 4-second countdown.
+  - **Zero Manual Clicks Required**: Manual "Start Game" buttons and "Waiting for Host" prompts are completely hidden in public matchmaking lobbies on both desktop and mobile; the lobby clearly displays an automated countdown indicator (`Starting automatically...`) so matches continuously flow without friction.
 
 ---
 

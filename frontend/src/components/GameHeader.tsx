@@ -25,6 +25,7 @@ interface GameHeaderProps {
   onLeaveGame?: () => void;
   gameMode?: GameMode;
   hidden?: boolean;
+  isChoosingWord?: boolean;
 }
 
 export const GameHeader: React.FC<GameHeaderProps> = ({
@@ -40,6 +41,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   onLeaveGame,
   gameMode = 'normal',
   hidden = false,
+  isChoosingWord = false,
 }) => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const { isMuted, toggleMute } = useSoundStore();
@@ -81,7 +83,19 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
 
   // Render masked word for guesser or full word for drawer
   const renderWordDisplay = () => {
-    // Drawer view: full word or combination phrase
+    // 1. Word is actively being chosen (15s countdown)
+    if (isChoosingWord) {
+      return (
+        <div className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+          <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
+          <span>
+            {isDrawer ? 'Choose a word...' : drawerName ? `${drawerName} is choosing a word...` : 'Choosing a word...'}
+          </span>
+        </div>
+      );
+    }
+
+    // 2. Drawer view: full word or combination phrase
     if (isDrawer) {
       if (!word) {
         return (
@@ -123,7 +137,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
       );
     }
 
-    // Guesser view in Hidden Mode: Rely on drawing alone, zero length or hints revealed
+    // 3. Guesser view in Hidden Mode: Rely on drawing alone, zero length or hints revealed
     if (hidden || gameMode === 'hidden') {
       return (
         <div className="flex flex-col items-center justify-center text-center gap-0.5 sm:gap-1 w-full min-w-0">

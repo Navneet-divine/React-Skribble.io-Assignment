@@ -40,7 +40,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
 
   // Role state: 'drawer' vs 'guesser'
   const [role, setRole] = useState<'drawer' | 'guesser'>('guesser');
-  const [drawerName, setDrawerName] = useState<string>('Drawer');
+  const [drawerName, setDrawerName] = useState<string>(() => {
+    if (currentRoom) {
+      if ((currentRoom as any).currentDrawerName) return (currentRoom as any).currentDrawerName;
+      const dId = currentRoom.currentDrawerId;
+      const p = lobbyPlayers.find((player) => player.id === dId || player.isDrawing);
+      if (p?.username) return p.username;
+    }
+    return '';
+  });
+  const [isChoosingWord, setIsChoosingWord] = useState<boolean>(() => Boolean(currentRoom?.status === 'choosing'));
 
   // Real word & turn state
   const [activeWordChoices, setActiveWordChoices] = useState<WordChoice[]>([]);
@@ -136,6 +145,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
   // Spoiler warning modal for drawer
   const [showSpoilerModal, setShowSpoilerModal] = useState(false);
 
+  // Active drawer resolution (ensuring drawer username is never empty or generic 'Drawer')
+  const activeDrawer = players.find((p) => p.isDrawing) || (currentRoom?.currentDrawerId ? players.find((p) => p.id === currentRoom.currentDrawerId) : null);
+  const effectiveDrawerName = drawerName && drawerName !== 'Drawer' ? drawerName : (activeDrawer?.username || '');
+
   // Real-time Socket.IO Multiplayer Event Listeners
   useEffect(() => {
     // 1. Room Data Synchronization (Players, roles, scores, round)
@@ -161,7 +174,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
             data.players.some((p: any) => p.username.toLowerCase() === username.trim().toLowerCase() && p.isDrawing)
           );
           setRole(isDrawer ? 'drawer' : 'guesser');
+        } else if (data.currentDrawerName) {
+          setDrawerName(data.currentDrawerName);
         }
+      }
+
+      if (data.status === 'choosing') {
+        setIsChoosingWord(true);
+      } else if (data.status === 'drawing' || data.status === 'round_end' || data.status === 'game_end') {
+        setIsChoosingWord(false);
       }
 
       if (data.currentRound) setCurrentRound(data.currentRound);
@@ -187,6 +208,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       setActiveWordChoices(formatted);
       setRole('drawer');
       setIsWordModalOpen(true);
+      setIsChoosingWord(true);
       const chosenDuration = duration || 15;
       setTimeLeft(chosenDuration);
       useRoomStore.getState().setTimeLeft(chosenDuration);
@@ -203,6 +225,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       setCurrentWord(upper);
       setRole('drawer');
       setIsWordModalOpen(false);
+      setIsChoosingWord(false);
       setStrokes([]);
       setRevealedIndices([]);
       setIsHiddenWord(false);
@@ -220,6 +243,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       maskedWord?: string;
       hidden?: boolean;
     }) => {
+      setIsChoosingWord(false);
+      setIsWordModalOpen(false);
+
       // If local player is the drawer, NEVER overwrite secret word with blanks!
       if (role === 'drawer' || drawerSecretWord) return;
 
@@ -232,13 +258,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       }
 
       setRevealedIndices(rIdxs || []);
-      setIsWordModalOpen(false);
     };
 
     // 5. Timer Tick sync from server clock
-    const handleTimerTick = ({ timeLeft: t }: { timeLeft: number }) => {
+    const handleTimerTick = ({ timeLeft: t, phase }: { timeLeft: number; phase?: string }) => {
       setTimeLeft(t);
       useRoomStore.getState().setTimeLeft(t);
+      if (phase === 'choosing') {
+        setIsChoosingWord(true);
+      } else if (phase === 'drawing') {
+        setIsChoosingWord(false);
+      }
     };
 
     // 6. Incoming Drawing Stroke from Drawer
@@ -307,6 +337,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       setTurnEndInfo({ word, reason, scores: resolvedScores });
       setDrawerSecretWord('');
       setIsHiddenWord(false);
+      setIsChoosingWord(false);
+      setIsWordModalOpen(false);
       if (updatedPlayers && Array.isArray(updatedPlayers)) {
         setPlayers(
           updatedPlayers.map((p: any) => ({
@@ -351,12 +383,25 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       setIsGameOverModalOpen(true);
     };
 
+    // 10C. Turn Phase sync announcements
+    const handleTurnChoosing = ({ drawerName: dName }: { drawerId: string; drawerName: string }) => {
+      setIsChoosingWord(true);
+      if (dName) setDrawerName(dName);
+    };
+
+    const handleTurnDrawing = ({ drawerName: dName }: { drawerId: string; drawerName: string }) => {
+      setIsChoosingWord(false);
+      if (dName) setDrawerName(dName);
+    };
+
     // Register all socket event listeners
     socket.on('room:data', handleRoomData);
     socket.on('word:choices', handleWordChoices);
     socket.on('word:secret', handleWordSecret);
     socket.on('word:hint', handleWordHint);
     socket.on('timer:tick', handleTimerTick);
+    socket.on('turn:choosing', handleTurnChoosing);
+    socket.on('turn:drawing', handleTurnDrawing);
     socket.on('draw:stroke', handleDrawStroke);
     socket.on('draw:undo', handleDrawUndo);
     socket.on('draw:clear', handleDrawClear);
@@ -376,6 +421,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       socket.off('word:secret', handleWordSecret);
       socket.off('word:hint', handleWordHint);
       socket.off('timer:tick', handleTimerTick);
+      socket.off('turn:choosing', handleTurnChoosing);
+      socket.off('turn:drawing', handleTurnDrawing);
       socket.off('draw:stroke', handleDrawStroke);
       socket.off('draw:undo', handleDrawUndo);
       socket.off('draw:clear', handleDrawClear);
@@ -573,11 +620,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
         word={role === 'drawer' ? (drawerSecretWord || currentWord) : currentWord}
         revealedIndices={revealedIndices}
         isDrawer={role === 'drawer'}
-        drawerName={role === 'drawer' ? (username || 'You') : drawerName}
+        drawerName={role === 'drawer' ? (username || 'You') : effectiveDrawerName}
         roomId={currentRoom?.id}
         onLeaveGame={onLeaveGame}
         gameMode={currentRoom?.settings.gameMode || 'normal'}
         hidden={role !== 'drawer' && (isHiddenWord || currentRoom?.settings.gameMode === 'hidden')}
+        isChoosingWord={isChoosingWord}
       />
 
       {/* 2A. Mobile & Tablet Layout (< lg): Skribbl-Style Viewport Arena (Simultaneous Drawing & Typing) */}
@@ -593,8 +641,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
         >
           <DrawingCanvas
             isDrawer={role === 'drawer'}
-            drawerName={role === 'drawer' ? (username || 'You') : drawerName}
-            isChoosingWord={!currentWord || isWordModalOpen}
+            drawerName={role === 'drawer' ? (username || 'You') : effectiveDrawerName}
+            isChoosingWord={isChoosingWord}
             activeColor={activeColor}
             activeSize={activeSize}
             activeTool={activeTool}
@@ -677,8 +725,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
           <div className="flex-1 w-full relative min-h-0 rounded-2xl overflow-hidden border border-slate-800">
             <DrawingCanvas
               isDrawer={role === 'drawer'}
-              drawerName={role === 'drawer' ? (username || 'You') : drawerName}
-              isChoosingWord={!currentWord || isWordModalOpen}
+              drawerName={role === 'drawer' ? (username || 'You') : effectiveDrawerName}
+              isChoosingWord={isChoosingWord}
               activeColor={activeColor}
               activeSize={activeSize}
               activeTool={activeTool}
@@ -738,17 +786,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
           selectionDuration={15}
           timeLeft={timeLeft}
         />
-      )}
-
-      {/* Guesser banner when drawer is choosing word */}
-      {role === 'guesser' && drawerName && !currentWord && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-40 max-w-[90vw]">
-          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-slate-900/90 text-indigo-300 font-heading font-bold shadow-2xl border border-indigo-500/30 backdrop-blur-md animate-pulse">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>{drawerName} is choosing a word...</span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-500/20 text-white font-mono">{timeLeft}s</span>
-          </div>
-        </div>
       )}
 
       {/* Game Over Celebration Modal (Winners announcement) */}

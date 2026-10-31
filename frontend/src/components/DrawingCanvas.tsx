@@ -587,14 +587,14 @@ function getBucketCursorPng(color: string): string {
             <>
               <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
               <span>
-                <strong className="text-white">{drawerName}</strong> is choosing a word...
+                <strong className="text-white">{drawerName || 'Player'}</strong> is choosing a word...
               </span>
             </>
           ) : (
             <>
               <Eye className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
               <span>
-                Watching <strong className="text-white">{drawerName}</strong> draw
+                Watching <strong className="text-white">{drawerName || 'Player'}</strong> draw
               </span>
             </>
           )}

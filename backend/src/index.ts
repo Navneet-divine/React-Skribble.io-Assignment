@@ -50,6 +50,16 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Root welcome endpoint
+app.get('/', (_req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Hello George, this is the backend server of DoodleSync!',
+    activeRooms: rooms.size,
+    timestamp: Date.now(),
+  });
+});
+
 // Register all Socket.IO multiplayer event listeners
 registerSocketHandlers(io);
 

@@ -86,6 +86,34 @@ export function startNextTurn(io: Server, roomId: string) {
           type: 'system',
           timestamp: Date.now(),
         });
+
+        // In public matchmaking rooms with 2+ players, automatically launch the next match after 4s!
+        if (r.isPublic && r.players.size >= 2) {
+          io.to(roomId).emit('chat:message', {
+            id: `sys-${Date.now() + 1}`,
+            senderName: 'System',
+            text: `🚀 Next public game starts automatically in 4 seconds!`,
+            type: 'system',
+            timestamp: Date.now() + 1,
+          });
+
+          setTimeout(() => {
+            const liveRoom = rooms.get(roomId);
+            if (!liveRoom || liveRoom.status !== 'lobby' || liveRoom.players.size < 2) return;
+
+            liveRoom.drawerOrder = Array.from(liveRoom.players.keys()).sort(() => 0.5 - Math.random());
+            liveRoom.drawerIndex = 0;
+            liveRoom.currentRound = 1;
+            liveRoom.players.forEach((p) => {
+              p.score = 0;
+              p.hasGuessed = false;
+              p.isDrawing = false;
+            });
+
+            console.log(`🚀 Public room ${liveRoom.id} auto-launching next game with ${liveRoom.players.size} players!`);
+            startNextTurn(io, liveRoom.id);
+          }, 4000);
+        }
       }, 6000);
 
       return;
@@ -176,6 +204,11 @@ function proceedWithDrawerTurn(io: Server, roomId: string) {
 
   // Broadcast room state to all clients so they transition into GameScreen
   io.to(roomId).emit('room:data', serializeRoom(room));
+  io.to(roomId).emit('turn:choosing', {
+    drawerId: nextDrawerId,
+    drawerName: drawer?.username || 'Drawer',
+    duration: 15,
+  });
   io.to(roomId).emit('chat:message', {
     id: `sys-${Date.now()}`,
     senderName: 'System',
@@ -263,6 +296,10 @@ export function beginDrawingTurn(io: Server, roomId: string, word: string) {
   });
 
   io.to(roomId).emit('room:data', serializeRoom(room));
+  io.to(roomId).emit('turn:drawing', {
+    drawerId: room.currentDrawerId,
+    drawerName: drawer?.username || 'Drawer',
+  });
 
   const announcementText = isHiddenMode
     ? `🎨 Round ${room.currentRound}: Start drawing! (Hidden Word — Guess from drawing alone!)`

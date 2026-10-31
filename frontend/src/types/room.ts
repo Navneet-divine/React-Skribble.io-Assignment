@@ -1,6 +1,7 @@
 import { type AvatarConfig } from './game';
 
 export type GameMode = 'normal' | 'hidden' | 'combination';
+export type RoomStatus = 'lobby' | 'choosing' | 'drawing' | 'round_end' | 'game_end';
 export type WordCountOption = 1 | 2 | 3 | 4 | 5;
 export type HintsOption = 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -37,6 +38,9 @@ export interface RoomInfo {
   settings: RoomSettings;
   createdAt: number;
   timeLeft?: number;
+  status?: RoomStatus;
+  currentDrawerId?: string;
+  currentDrawerName?: string;
 }
 
 export const ROUND_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10];

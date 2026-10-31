@@ -65,6 +65,7 @@ export function serializeRoom(room: Room) {
     currentRound: room.currentRound,
     totalRounds: room.totalRounds,
     currentDrawerId: room.currentDrawerId,
+    currentDrawerName: room.currentDrawerId ? (room.players.get(room.currentDrawerId)?.username || '') : '',
     currentWord: isConcluded ? room.currentWord : '',
     revealedIndices: room.revealedIndices,
     timeLeft: room.timeLeft,

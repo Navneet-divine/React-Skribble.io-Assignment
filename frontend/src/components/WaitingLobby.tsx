@@ -933,7 +933,24 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
 
         {/* Mobile Start Game Button Controls */}
         <div className="p-4 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl">
-          {isHost ? (
+          {isPublicMatch ? (
+            <div className="p-3 text-center space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${players.length >= 2 ? 'bg-emerald-400' : 'bg-amber-400'} opacity-75`}></span>
+                  <span className={`relative inline-flex rounded-full h-3 w-3 ${players.length >= 2 ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                </span>
+                <span className={`text-xs font-semibold ${players.length >= 2 ? 'text-emerald-300' : 'text-amber-300'}`}>
+                  {players.length >= 2 ? 'Starting automatically...' : 'Waiting for more players to join...'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {players.length >= 2
+                  ? `Match ready with ${players.length} players! The game starts automatically.`
+                  : 'Public matches start automatically as soon as 2 players connect.'}
+              </p>
+            </div>
+          ) : isHost ? (
             <div className="space-y-2.5">
               <button
                 type="button"
@@ -1277,7 +1294,24 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
 
         {/* ROW 2 RIGHT: Lobby Controls: Start Game Button Area */}
         <div className={`${isPublicMatch ? 'lg:col-span-12 max-w-xl mx-auto w-full' : 'lg:col-span-5'} p-4 sm:p-5 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col justify-center`}>
-          {isHost ? (
+          {isPublicMatch ? (
+            <div className="p-3 text-center space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${players.length >= 2 ? 'bg-emerald-400' : 'bg-amber-400'} opacity-75`}></span>
+                  <span className={`relative inline-flex rounded-full h-3 w-3 ${players.length >= 2 ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                </span>
+                <span className={`text-xs font-semibold ${players.length >= 2 ? 'text-emerald-300' : 'text-amber-300'}`}>
+                  {players.length >= 2 ? 'Starting automatically...' : 'Waiting for more players to join...'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
+                {players.length >= 2
+                  ? `Match ready with ${players.length} players! The game starts automatically without needing anyone to press start.`
+                  : 'Public matches start automatically as soon as 2 players connect.'}
+              </p>
+            </div>
+          ) : isHost ? (
             <div className="space-y-3">
               <button
                 type="button"
