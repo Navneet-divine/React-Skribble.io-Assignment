@@ -13,7 +13,12 @@ import { Sparkles, Gamepad2 } from 'lucide-react';
 import { type RoomInfo } from './types/room';
 import { useRoomStore } from './store/roomStore';
 import { usePlayerStore } from './store/playerStore';
-import { socket, joinMultiplayerRoom, leaveMultiplayerRoom } from './lib/socket';
+import {
+  socket,
+  joinMultiplayerRoom,
+  matchmakePublicRoom,
+  leaveMultiplayerRoom,
+} from './lib/socket';
 
 // URL query parameter helpers for seamless refresh and shareable links
 const updateUrlWithRoom = (roomId: string) => {
@@ -221,7 +226,7 @@ export const App: React.FC = () => {
   const handlePlayFromHome = async () => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
-    const { avatar, ensureUsername, ensurePlayerId } = usePlayerStore.getState();
+    const { avatar, ensureUsername, ensurePlayerId, language } = usePlayerStore.getState();
     const effectiveUsername = ensureUsername();
     const playerId = ensurePlayerId();
 
@@ -246,7 +251,45 @@ export const App: React.FC = () => {
         handleJoinedLobby(roomParam);
       }
     } else {
-      setIsJoinRoomOpen(true);
+      // Skribbl.io style: Instant public matchmaking by selected language
+      showNotification('🔍 Finding public match in your language...');
+      try {
+        const res = await matchmakePublicRoom(
+          {
+            id: playerId,
+            username: effectiveUsername,
+            avatar,
+          },
+          language || 'en'
+        );
+
+        if (res && res.success && res.room) {
+          useRoomStore.getState().syncRoomData(res.room, effectiveUsername);
+          updateUrlWithRoom(res.room.id);
+
+          if (
+            res.room.status === 'choosing' ||
+            res.room.status === 'drawing' ||
+            res.room.status === 'round_end'
+          ) {
+            setScreen('game');
+            setGameStatus('playing');
+            showNotification(`🎮 Matched into live game (${res.room.id})!`);
+          } else {
+            setScreen('lobby');
+            setGameStatus('lobby');
+            if (res.isNewRoom) {
+              showNotification(`🌐 Created public lobby ${res.room.id}! Waiting for players...`);
+            } else {
+              showNotification(`🌐 Joined public lobby ${res.room.id}! Game starts with 2+ players.`);
+            }
+          }
+        } else {
+          showNotification(`⚠️ ${res?.error || 'Could not connect to public matchmaking.'}`);
+        }
+      } catch (err: any) {
+        showNotification(`⚠️ Matchmaking error: ${err?.message || 'Server unreachable'}`);
+      }
     }
   };
 

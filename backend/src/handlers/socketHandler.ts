@@ -98,6 +98,7 @@ export function registerSocketHandlers(io: Server) {
 
       const newRoom: Room = {
         id: roomId,
+        isPublic: false,
         settings: {
           rounds: roundsCount,
           drawTime: drawTimeSec,
@@ -108,6 +109,7 @@ export function registerSocketHandlers(io: Server) {
           gameMode,
           wordCount,
           hints,
+          isPublic: false,
         },
         status: 'lobby',
         players: new Map([[hostPlayer.id, hostPlayer]]),
@@ -135,6 +137,192 @@ export function registerSocketHandlers(io: Server) {
 
       socket.emit('room:data', serializeRoom(newRoom));
     });
+
+    // 1.05 Public Matchmaking (Skribbl.io style: automatic matching by language)
+    socket.on(
+      'room:matchmake',
+      (
+        { player, language }: { player?: Partial<Player>; language?: string },
+        callback
+      ) => {
+        const targetLang = (language || 'en').trim().toLowerCase();
+        const playerData = player || {};
+
+        // Find candidate public rooms matching language with available slots
+        const candidateRooms = Array.from(rooms.values()).filter(
+          (r) =>
+            Boolean(r.isPublic) &&
+            (r.settings.language.toLowerCase() === targetLang || !targetLang) &&
+            r.players.size < r.settings.maxPlayers &&
+            r.status !== 'game_end'
+        );
+
+        // Sort: prioritize rooms with more players so players congregate, and prefer active/lobby rooms
+        candidateRooms.sort((a, b) => b.players.size - a.players.size);
+
+        if (candidateRooms.length > 0) {
+          // Join the best candidate room
+          const room = candidateRooms[0];
+          const playerId =
+            playerData.id || `p-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+          const newPlayer: Player = {
+            id: playerId,
+            socketId: socket.id,
+            username: playerData.username?.trim() || generateMeaningfulUsername(),
+            avatar: playerData.avatar || {
+              style: 'bottts-neutral',
+              seed: `seed-${Date.now()}`,
+              backgroundColor: 'ffd5dc',
+            },
+            score: 0,
+            isHost: false,
+            isReady: true,
+            isDrawing: false,
+            hasGuessed: false,
+            joinedAt: Date.now(),
+          };
+
+          room.players.set(newPlayer.id, newPlayer);
+          if (!room.drawerOrder.includes(newPlayer.id)) {
+            room.drawerOrder.push(newPlayer.id);
+          }
+
+          socketToRoom.set(socket.id, { roomId: room.id, playerId: newPlayer.id });
+          socket.join(room.id);
+
+          console.log(
+            `🌐 Player ${newPlayer.username} matched into public room ${room.id} (${room.players.size}/${room.settings.maxPlayers})`
+          );
+
+          // If room was waiting in lobby and now has at least 2 players, start automatically!
+          if (room.status === 'lobby' && room.players.size >= 2) {
+            console.log(`🚀 Public room ${room.id} reached ${room.players.size} players, auto-starting game!`);
+            room.drawerOrder = Array.from(room.players.keys()).sort(() => 0.5 - Math.random());
+            room.drawerIndex = 0;
+            room.currentRound = 1;
+            room.players.forEach((p) => {
+              p.score = 0;
+              p.hasGuessed = false;
+              p.isDrawing = false;
+            });
+            startNextTurn(io, room.id);
+          } else {
+            // Broadcast updated room state to all players
+            io.to(room.id).emit('room:data', serializeRoom(room));
+          }
+
+          // Welcome announcement in chat
+          io.to(room.id).emit('chat:message', {
+            id: `sys-${Date.now()}`,
+            senderName: 'System',
+            text: `👋 ${newPlayer.username} joined the game via public matchmaking!`,
+            type: 'system',
+            timestamp: Date.now(),
+          });
+
+          // Late-joiner synchronization if joining active drawing turn
+          if (room.strokes.length > 0) {
+            socket.emit('draw:history', { strokes: room.strokes });
+          }
+          socket.emit('timer:tick', { timeLeft: room.timeLeft, phase: room.status });
+
+          if (room.status === 'drawing') {
+            if (newPlayer.id === room.currentDrawerId) {
+              socket.emit('word:secret', { word: room.currentWord });
+            } else {
+              const isHidden = room.settings.gameMode === 'hidden';
+              socket.emit('word:hint', {
+                length: isHidden ? 0 : room.currentWord.length,
+                maskedWord: getMaskedWord(room.currentWord, room.revealedIndices, room.settings.gameMode),
+                revealedIndices: room.revealedIndices,
+                hidden: isHidden,
+                gameMode: room.settings.gameMode,
+              });
+            }
+          }
+
+          if (typeof callback === 'function') {
+            callback({
+              success: true,
+              roomId: room.id,
+              room: serializeRoom(room),
+              player: newPlayer,
+              isNewRoom: false,
+            });
+          }
+
+          socket.emit('room:data', serializeRoom(room));
+          return;
+        }
+
+        // No open room found: create a new public room and wait for incoming players
+        const roomId = generateRoomCode();
+        const hostPlayer: Player = {
+          id: playerData.id || `p-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          socketId: socket.id,
+          username: playerData.username?.trim() || generateMeaningfulUsername(),
+          avatar: playerData.avatar || {
+            style: 'bottts-neutral',
+            seed: 'Host',
+            backgroundColor: 'b6e3f4',
+          },
+          score: 0,
+          isHost: true,
+          isReady: true,
+          isDrawing: false,
+          hasGuessed: false,
+          joinedAt: Date.now(),
+        };
+
+        const newPublicRoom: Room = {
+          id: roomId,
+          isPublic: true,
+          settings: {
+            rounds: 3,
+            drawTime: 80,
+            maxPlayers: 8,
+            language: targetLang,
+            customWords: [],
+            onlyCustomWords: false,
+            gameMode: 'normal',
+            wordCount: 3,
+            hints: 2,
+            isPublic: true,
+          },
+          status: 'lobby',
+          players: new Map([[hostPlayer.id, hostPlayer]]),
+          currentRound: 1,
+          totalRounds: 3,
+          currentDrawerId: null,
+          drawerOrder: [hostPlayer.id],
+          drawerIndex: 0,
+          currentWord: '',
+          wordChoices: [],
+          revealedIndices: [],
+          timeLeft: 80,
+          strokes: [],
+        };
+
+        rooms.set(roomId, newPublicRoom);
+        socketToRoom.set(socket.id, { roomId, playerId: hostPlayer.id });
+        socket.join(roomId);
+
+        console.log(`🌐 Public room created: ${roomId} for language "${targetLang}" by ${hostPlayer.username}`);
+
+        if (typeof callback === 'function') {
+          callback({
+            success: true,
+            roomId,
+            room: serializeRoom(newPublicRoom),
+            player: hostPlayer,
+            isNewRoom: true,
+          });
+        }
+
+        socket.emit('room:data', serializeRoom(newPublicRoom));
+      }
+    );
 
     // 1.1 Room Settings Update (Host authority while in lobby)
     socket.on(
@@ -166,34 +354,38 @@ export function registerSocketHandlers(io: Server) {
         if (settings.language !== undefined) {
           room.settings.language = String(settings.language).trim();
         }
-        if (settings.customWords !== undefined) {
-          room.settings.customWords = sanitizeAndDeduplicateCustomWords(settings.customWords);
-        }
-        if (settings.onlyCustomWords !== undefined) {
-          room.settings.onlyCustomWords = Boolean(settings.onlyCustomWords);
-        }
-        if (settings.gameMode !== undefined && ['normal', 'hidden', 'combination'].includes(settings.gameMode)) {
-          room.settings.gameMode = settings.gameMode;
-        }
-        if (settings.wordCount !== undefined) {
-          room.settings.wordCount = Math.min(5, Math.max(1, Number(settings.wordCount) || 3)) as WordCountOption;
-        }
-        if (settings.hints !== undefined) {
-          const parsed = Number(settings.hints);
-          room.settings.hints = Math.min(5, Math.max(0, isNaN(parsed) ? 2 : parsed)) as HintsOption;
-        }
-        if (settings.rounds !== undefined) {
-          const r = Math.min(10, Math.max(2, Number(settings.rounds) || 3));
-          room.settings.rounds = r;
-          room.totalRounds = r;
-        }
-        if (settings.drawTime !== undefined) {
-          const dt = Math.min(240, Math.max(15, Number(settings.drawTime) || 80));
-          room.settings.drawTime = dt;
-          room.timeLeft = dt;
-        }
-        if (settings.maxPlayers !== undefined) {
-          room.settings.maxPlayers = Math.min(20, Math.max(2, Number(settings.maxPlayers) || 8));
+
+        // In public matchmaking rooms, all gameplay rules & custom words are strictly locked to defaults for fair play
+        if (!room.isPublic) {
+          if (settings.customWords !== undefined) {
+            room.settings.customWords = sanitizeAndDeduplicateCustomWords(settings.customWords);
+          }
+          if (settings.onlyCustomWords !== undefined) {
+            room.settings.onlyCustomWords = Boolean(settings.onlyCustomWords);
+          }
+          if (settings.gameMode !== undefined && ['normal', 'hidden', 'combination'].includes(settings.gameMode)) {
+            room.settings.gameMode = settings.gameMode;
+          }
+          if (settings.wordCount !== undefined) {
+            room.settings.wordCount = Math.min(5, Math.max(1, Number(settings.wordCount) || 3)) as WordCountOption;
+          }
+          if (settings.hints !== undefined) {
+            const parsed = Number(settings.hints);
+            room.settings.hints = Math.min(5, Math.max(0, isNaN(parsed) ? 2 : parsed)) as HintsOption;
+          }
+          if (settings.rounds !== undefined) {
+            const r = Math.min(10, Math.max(2, Number(settings.rounds) || 3));
+            room.settings.rounds = r;
+            room.totalRounds = r;
+          }
+          if (settings.drawTime !== undefined) {
+            const dt = Math.min(240, Math.max(15, Number(settings.drawTime) || 80));
+            room.settings.drawTime = dt;
+            room.timeLeft = dt;
+          }
+          if (settings.maxPlayers !== undefined) {
+            room.settings.maxPlayers = Math.min(20, Math.max(2, Number(settings.maxPlayers) || 8));
+          }
         }
 
         io.to(normalizedRoomId).emit('room:data', serializeRoom(room));
@@ -621,9 +813,9 @@ export function registerSocketHandlers(io: Server) {
         return;
       }
 
-      // 2. Reassign host if host left - the user that came after host becomes host
+      // 2. Reassign host if host left (Private Rooms only)
       let newlyPromotedHost: Player | null = null;
-      if (isHostLeaving && room.players.size > 0) {
+      if (!room.isPublic && isHostLeaving && room.players.size > 0) {
         newlyPromotedHost = Array.from(room.players.values())[0];
         newlyPromotedHost.isHost = true;
         console.log(`👑 Reassigned host in ${room.id} to ${newlyPromotedHost.username}`);

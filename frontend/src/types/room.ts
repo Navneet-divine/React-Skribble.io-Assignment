@@ -14,6 +14,7 @@ export interface RoomSettings {
   gameMode: GameMode;       // 'normal' | 'hidden' | 'combination' (default: 'normal')
   wordCount: WordCountOption; // Number of word choices: 1 to 5 (default: 3)
   hints: HintsOption;       // Max letters revealed: 0 to 5 (default: 2)
+  isPublic?: boolean;       // Whether this is a public matchmaking room
 }
 
 export interface LobbyPlayer {
@@ -32,6 +33,7 @@ export interface RoomInfo {
   id: string;               // Unique room code e.g. "DOODLE-7K9A"
   inviteLink: string;       // Full shareable URL
   isHost: boolean;          // Whether the local player is host
+  isPublic?: boolean;       // Whether this is a public matchmaking room
   settings: RoomSettings;
   createdAt: number;
   timeLeft?: number;

@@ -231,6 +231,7 @@ export const useRoomStore = create<RoomState>()(
         id: data.id,
         inviteLink,
         isHost: isUserHost,
+        isPublic: Boolean(data.isPublic),
         timeLeft: liveTimeLeft,
         settings: data.settings || {
           rounds: 3,

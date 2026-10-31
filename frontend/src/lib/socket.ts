@@ -64,6 +64,23 @@ export async function joinMultiplayerRoom(
   });
 }
 
+export async function matchmakePublicRoom(
+  player: { id?: string; username: string; avatar: AvatarConfig },
+  language: string
+): Promise<{ success: boolean; roomId?: string; room?: any; player?: any; isNewRoom?: boolean; error?: string }> {
+  await ensureSocketConnected();
+
+  return new Promise((resolve) => {
+    socket.emit(
+      'room:matchmake',
+      { player, language },
+      (response: { success: boolean; roomId?: string; room?: any; player?: any; isNewRoom?: boolean; error?: string }) => {
+        resolve(response);
+      }
+    );
+  });
+}
+
 export function startMultiplayerGame() {
   if (socket.connected) {
     socket.emit('game:start');

@@ -248,6 +248,31 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 
 ---
 
+### Phase 11: Skribbl.io-Style Public Play Matchmaking & Drop-In Multiplayer ✅
+- **🌐 1-Click Instant "Play!" Matchmaking Engine**
+  - **Identical to Skribbl.io Flow**: Clicking the green **"Play!"** button no longer prompts for a room code; it immediately matches players into an open public room filtered by their selected language.
+  - **High-Density Player Congregation**: Prioritizes rooms with more connected players over empty rooms (`b.players.size - a.players.size`), preventing fragmented 1-player rooms and maximizing lobby vibrancy.
+  - **Automatic Public Room Spawning**: If no open public room exists for the chosen language, a fresh public room is instantly spun up with standardized rules (3 rounds, 80s draw time, 2 hints, max 8 players, normal mode).
+- **⚡ Mid-Game Drop-In with Zero Interruption**
+  - **Live Game Joining**: Players matched into an active drawing round seamlessly connect as active guessers without disrupting the ongoing drawer.
+  - **Full Canvas History Synchronization**: Complete vector drawing history (`draw:history`) is dispatched to late joiners, rendering the current canvas state in real-time.
+  - **Live Clock & Hint Alignment**: Late joiners receive exact server clock countdown ticks (`timer:tick`) and role-appropriate masked word placeholders (`word:hint`).
+  - **Dynamic Drawer Rotation**: Newly joined players are cleanly integrated into `drawerOrder`, ensuring they receive their turn to draw in future rounds.
+- **🚀 Automatic Public Lobby Game Start**
+  - **2+ Players Auto-Start**: Public matchmaking rooms waiting in the lobby automatically launch the match as soon as 2 or more players connect—no manual host click required.
+  - **Live Matchmaking Status Banner**: Displays a real-time animated indicator: *"Waiting for players to join... The game starts automatically as soon as 2 players connect!"* with a live player counter (`X/8`).
+  - **Distinct Badges**: Public games are highlighted with a `🌐 Public Match` emerald badge, while private custom games are designated with `🔒 Private Room`.
+- **🔒 Standardized Fair-Play Settings & Custom Word Exclusion**
+  - **Locked Gameplay Defaults**: In public matchmaking, standard settings (8 players, 80s draw duration, 3 rounds, normal game mode, 3 word choices, 2 hints) are fixed and rendered as static badges to ensure an even playing field for all participants.
+  - **Host Language Selector Active**: The host retains the ability to switch the game dictionary language in public rooms.
+  - **Democratic Player Status**: In public matchmaking, all participants appear with equal status ("Ready") without crown or "Room Host" badges, and player kick authority is disabled. Host crowns and kick privileges are reserved exclusively for Private Rooms.
+  - **Complete Custom Word Exclusion**: The custom words configuration card is completely omitted in public games on both mobile and desktop viewports, and the backend rejects custom words on public rooms, eliminating spoiler risks or unfair advantages. Private rooms retain the full custom words suite.
+- **🔒 Dedicated Private Room Separation**
+  - **Isolated Pools**: Private rooms created via **"Create Private Room"** (`isPublic: false`) are strictly excluded from public matchmaking, preserving private invite links and custom configurations (custom words, game modes, rounds) for team events.
+  - **Direct Room Code Entry**: Dedicated **"Join with Room Code"** button remains available on the homepage for players joining private matches manually.
+
+---
+
 ## 🛠️ Tech Stack
 
 ### Frontend

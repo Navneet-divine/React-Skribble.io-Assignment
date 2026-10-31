@@ -33,6 +33,7 @@ export interface RoomSettings {
   gameMode: GameMode;
   wordCount: WordCountOption;
   hints: HintsOption;
+  isPublic?: boolean;
 }
 
 export interface NormalizedPoint {
@@ -60,6 +61,7 @@ export type RoomStatus = 'lobby' | 'choosing' | 'drawing' | 'round_end' | 'game_
 
 export interface Room {
   id: string;
+  isPublic?: boolean;
   settings: RoomSettings;
   status: RoomStatus;
   players: Map<string, Player>;

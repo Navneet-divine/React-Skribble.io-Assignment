@@ -41,6 +41,7 @@ export function serializeRoom(room: Room) {
 
   return {
     id: room.id,
+    isPublic: Boolean(room.isPublic),
     settings: room.settings,
     status: room.status,
     players: Array.from(room.players.values()).map((p) => ({

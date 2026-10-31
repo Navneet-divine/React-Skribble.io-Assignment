@@ -207,7 +207,11 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
     );
   }
 
+  const isPublicMatch = Boolean(currentRoom.isPublic);
+  const canEditPrivateSettings = isHost && !isPublicMatch;
+
   const hasEnoughCustomWords =
+    isPublicMatch ||
     !currentRoom.settings.onlyCustomWords ||
     Boolean(currentRoom.settings.customWords && currentRoom.settings.customWords.length >= 10);
   const canStartGame = players.length >= 2 && hasEnoughCustomWords;
@@ -297,8 +301,14 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                Private Room
+              <span
+                className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
+                  currentRoom.isPublic
+                    ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
+                    : 'bg-slate-800 text-slate-400'
+                }`}
+              >
+                {currentRoom.isPublic ? '🌐 Public Match' : '🔒 Private Room'}
               </span>
               <button
                 type="button"
@@ -329,7 +339,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {/* 1. Players Dropdown */}
           <div className="relative inline-flex items-center">
-            {isHost ? (
+            {canEditPrivateSettings ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -413,7 +423,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
 
           {/* 3. Drawtime Dropdown */}
           <div className="relative inline-flex items-center">
-            {isHost ? (
+            {canEditPrivateSettings ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -453,7 +463,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
 
           {/* 4. Rounds Dropdown */}
           <div className="relative inline-flex items-center">
-            {isHost ? (
+            {canEditPrivateSettings ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -493,7 +503,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
 
           {/* 5. Game Mode Dropdown */}
           <div className="relative inline-flex items-center">
-            {isHost ? (
+            {canEditPrivateSettings ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -542,7 +552,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
 
           {/* 6. Word Count Dropdown */}
           <div className="relative inline-flex items-center">
-            {isHost ? (
+            {canEditPrivateSettings ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -584,7 +594,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
 
           {/* 7. Hints Dropdown */}
           <div className="relative inline-flex items-center">
-            {isHost ? (
+            {canEditPrivateSettings ? (
               currentRoom.settings.gameMode === 'hidden' ? (
                 <div
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-850 border border-slate-800 text-slate-500 opacity-60 shadow-xs cursor-not-allowed select-none"
@@ -652,6 +662,24 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
         </button>
       </div>
 
+      {/* Public Matchmaking Live Indicator Banner */}
+      {currentRoom.isPublic && (
+        <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs sm:text-sm font-medium shadow-md">
+          <div className="w-2.5 h-2.5 rounded-full bg-teal-400 animate-ping shrink-0" />
+          <div className="flex-1">
+            <span className="font-bold text-white">🌐 Public Matchmaking: </span>
+            <span>
+              {players.length < 2
+                ? 'Waiting for players to join... The game starts automatically as soon as 2 players connect!'
+                : `Match ready with ${players.length} players! Starting automatically...`}
+            </span>
+          </div>
+          <span className="text-[11px] font-mono text-teal-400 bg-teal-950/60 px-2 py-0.5 rounded-lg border border-teal-500/20 shrink-0">
+            {players.length}/{maxPlayers}
+          </span>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* MOBILE & TABLET LAYOUT (< lg): Skribbl-Style 50-50 Side-by-Side Panel & Chat */}
       {/* ========================================================================= */}
@@ -674,7 +702,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
                   <div
                     key={player.id}
                     className={`flex items-center gap-1.5 p-1.5 rounded-xl border transition-all ${
-                      player.isHost
+                      player.isHost && !isPublicMatch
                         ? 'bg-amber-500/10 border-amber-500/30'
                         : isCurrentUser
                         ? 'bg-indigo-500/10 border-indigo-500/30'
@@ -702,7 +730,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
                           </span>
                         )}
                       </div>
-                      {player.isHost ? (
+                      {player.isHost && !isPublicMatch ? (
                         <div className="text-[9px] text-amber-400 flex items-center gap-0.5 font-semibold">
                           <Crown className="w-2.5 h-2.5 fill-amber-400" /> Host
                         </div>
@@ -713,7 +741,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
                       )}
                     </div>
 
-                    {isHost && !player.isHost && (
+                    {!isPublicMatch && isHost && !player.isHost && (
                       <button
                         type="button"
                         onClick={() => kickPlayer(player.id)}
@@ -800,106 +828,108 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
           </button>
         </form>
 
-        {/* Mobile Custom Words Card (Open as Default) */}
-        <div className="p-4 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-xl space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-              <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
-              <h3 className="text-sm font-bold font-heading text-white whitespace-nowrap">Custom Words</h3>
-              {currentRoom.settings.customWords && currentRoom.settings.customWords.length > 0 && (
-                <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30 whitespace-nowrap">
-                  {currentRoom.settings.customWords.length}/100 words
-                </span>
-              )}
-              {wordValidation.duplicateCount > 0 && (
-                <span className="text-[10px] font-semibold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded-full border border-amber-500/30 whitespace-nowrap">
-                  ⚠️ {wordValidation.duplicateCount} duplicate{wordValidation.duplicateCount > 1 ? 's' : ''} removed
-                </span>
-              )}
-              {wordValidation.invalidLengthCount > 0 && (
-                <span className="text-[10px] font-semibold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded-full border border-rose-500/30 whitespace-nowrap">
-                  ⚠️ {wordValidation.invalidLengthCount} &gt;32 chars
-                </span>
-              )}
-              {wordValidation.exceededMaxCount > 0 && (
-                <span className="text-[10px] font-semibold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded-full border border-amber-500/30 whitespace-nowrap">
-                  ⚠️ Max 100
-                </span>
-              )}
-            </div>
-
-            <label
-              className={`flex items-center gap-1.5 select-none text-xs font-semibold shrink-0 whitespace-nowrap ${
-                isHost ? 'text-slate-300 hover:text-white cursor-pointer' : 'text-slate-500 cursor-not-allowed'
-              }`}
-            >
-              <input
-                type="checkbox"
-                disabled={!isHost}
-                checked={Boolean(currentRoom.settings.onlyCustomWords)}
-                onChange={(e) => handleSettingChange({ onlyCustomWords: e.target.checked })}
-                className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-              />
-              <span className="text-[11px] whitespace-nowrap">Use custom words only</span>
-            </label>
-          </div>
-
-          {isHost ? (
-            <div className="space-y-2">
-              <textarea
-                value={customWordsText}
-                onChange={handleWordsInputChange}
-                maxLength={20000}
-                onBlur={() => {
-                  if (
-                    wordValidation.duplicateCount > 0 ||
-                    wordValidation.invalidLengthCount > 0 ||
-                    wordValidation.exceededMaxCount > 0
-                  ) {
-                    setCustomWordsText(wordValidation.uniqueWords.join(', '));
-                  }
-                }}
-                placeholder="Minimum 10 words. 1-32 chars each. Max 100 words & 20,000 chars total. Comma or new line separated."
-                rows={3}
-                className="w-full p-2.5 bg-slate-950 text-xs text-slate-200 rounded-xl border border-slate-700 focus:border-indigo-500 focus:outline-none font-mono resize-none transition-all placeholder-slate-500"
-              />
-              <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400 whitespace-nowrap">
-                <span className="text-[10px] text-slate-400 truncate">
-                  {wordValidation.uniqueWords.length < 10 ? (
-                    <span className="text-amber-400 font-medium">
-                      ⚠️ {wordValidation.uniqueWords.length}/10 words (min. 10 required)
-                    </span>
-                  ) : (
-                    <span>
-                      {wordValidation.uniqueWords.length}/100 words ({wordValidation.totalChars.toLocaleString()}/20k chars)
-                    </span>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  disabled={isSavingWords}
-                  onClick={handleManualSaveWords}
-                  className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-lg shadow-sm cursor-pointer transition-all shrink-0 whitespace-nowrap"
-                >
-                  {isSavingWords ? 'Saving...' : 'Save Words'}
-                </button>
+        {/* Mobile Custom Words Card (Private Rooms Only) */}
+        {!isPublicMatch && (
+          <div className="p-4 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-xl space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
+                <h3 className="text-sm font-bold font-heading text-white whitespace-nowrap">Custom Words</h3>
+                {currentRoom.settings.customWords && currentRoom.settings.customWords.length > 0 && (
+                  <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30 whitespace-nowrap">
+                    {currentRoom.settings.customWords.length}/100 words
+                  </span>
+                )}
+                {wordValidation.duplicateCount > 0 && (
+                  <span className="text-[10px] font-semibold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded-full border border-amber-500/30 whitespace-nowrap">
+                    ⚠️ {wordValidation.duplicateCount} duplicate{wordValidation.duplicateCount > 1 ? 's' : ''} removed
+                  </span>
+                )}
+                {wordValidation.invalidLengthCount > 0 && (
+                  <span className="text-[10px] font-semibold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded-full border border-rose-500/30 whitespace-nowrap">
+                    ⚠️ {wordValidation.invalidLengthCount} &gt;32 chars
+                  </span>
+                )}
+                {wordValidation.exceededMaxCount > 0 && (
+                  <span className="text-[10px] font-semibold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded-full border border-amber-500/30 whitespace-nowrap">
+                    ⚠️ Max 100
+                  </span>
+                )}
               </div>
+
+              <label
+                className={`flex items-center gap-1.5 select-none text-xs font-semibold shrink-0 whitespace-nowrap ${
+                  isHost ? 'text-slate-300 hover:text-white cursor-pointer' : 'text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  disabled={!isHost}
+                  checked={Boolean(currentRoom.settings.onlyCustomWords)}
+                  onChange={(e) => handleSettingChange({ onlyCustomWords: e.target.checked })}
+                  className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+                <span className="text-[11px] whitespace-nowrap">Use custom words only</span>
+              </label>
             </div>
-          ) : currentRoom.settings.customWords && currentRoom.settings.customWords.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1 scrollbar-thin">
-              {currentRoom.settings.customWords.map((word, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-0.5 rounded-lg bg-slate-800 text-[11px] font-mono text-slate-300 border border-slate-700/60"
-                >
-                  {word}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-500">No custom words added by host.</p>
-          )}
-        </div>
+
+            {isHost ? (
+              <div className="space-y-2">
+                <textarea
+                  value={customWordsText}
+                  onChange={handleWordsInputChange}
+                  maxLength={20000}
+                  onBlur={() => {
+                    if (
+                      wordValidation.duplicateCount > 0 ||
+                      wordValidation.invalidLengthCount > 0 ||
+                      wordValidation.exceededMaxCount > 0
+                    ) {
+                      setCustomWordsText(wordValidation.uniqueWords.join(', '));
+                    }
+                  }}
+                  placeholder="Minimum 10 words. 1-32 chars each. Max 100 words & 20,000 chars total. Comma or new line separated."
+                  rows={3}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-slate-200 rounded-xl border border-slate-700 focus:border-indigo-500 focus:outline-none font-mono resize-none transition-all placeholder-slate-500"
+                />
+                <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400 whitespace-nowrap">
+                  <span className="text-[10px] text-slate-400 truncate">
+                    {wordValidation.uniqueWords.length < 10 ? (
+                      <span className="text-amber-400 font-medium">
+                        ⚠️ {wordValidation.uniqueWords.length}/10 words (min. 10 required)
+                      </span>
+                    ) : (
+                      <span>
+                        {wordValidation.uniqueWords.length}/100 words ({wordValidation.totalChars.toLocaleString()}/20k chars)
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={isSavingWords}
+                    onClick={handleManualSaveWords}
+                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-lg shadow-sm cursor-pointer transition-all shrink-0 whitespace-nowrap"
+                  >
+                    {isSavingWords ? 'Saving...' : 'Save Words'}
+                  </button>
+                </div>
+              </div>
+            ) : currentRoom.settings.customWords && currentRoom.settings.customWords.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1 scrollbar-thin">
+                {currentRoom.settings.customWords.map((word, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-lg bg-slate-800 text-[11px] font-mono text-slate-300 border border-slate-700/60"
+                  >
+                    {word}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">No custom words added by host.</p>
+            )}
+          </div>
+        )}
 
         {/* Mobile Start Game Button Controls */}
         <div className="p-4 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl">
@@ -978,7 +1008,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
                 <div
                   key={player.id}
                   className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-                    player.isHost
+                    player.isHost && !isPublicMatch
                       ? 'bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border-amber-500/40 shadow-sm'
                       : isCurrentUser
                       ? 'bg-indigo-500/10 border-indigo-500/40'
@@ -1011,7 +1041,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
                         )}
                       </div>
 
-                      {player.isHost ? (
+                      {player.isHost && !isPublicMatch ? (
                         <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-400 mt-0.5">
                           <Crown className="w-3 h-3 fill-amber-400" />
                           <span>Room Host</span>
@@ -1025,8 +1055,8 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
                     </div>
                   </div>
 
-                  {/* Host Authority: Kick player option */}
-                  {isHost && !player.isHost && (
+                  {/* Host Authority: Kick player option (Private Rooms only) */}
+                  {!isPublicMatch && isHost && !player.isHost && (
                     <button
                       type="button"
                       onClick={() => kickPlayer(player.id)}
@@ -1137,114 +1167,116 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
           </form>
         </div>
 
-        {/* ROW 2 LEFT (7 cols): Custom Words Card (Always Open by Default) */}
-        <div className="lg:col-span-7 p-5 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
-                <h3 className="text-sm font-bold font-heading text-white whitespace-nowrap">Custom Words</h3>
-                {currentRoom.settings.customWords && currentRoom.settings.customWords.length > 0 && (
-                  <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30 whitespace-nowrap">
-                    {currentRoom.settings.customWords.length}/100 words
-                  </span>
-                )}
-                {wordValidation.duplicateCount > 0 && (
-                  <span className="text-[10px] font-semibold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30 whitespace-nowrap">
-                    ⚠️ {wordValidation.duplicateCount} duplicate{wordValidation.duplicateCount > 1 ? 's' : ''} removed
-                  </span>
-                )}
-                {wordValidation.invalidLengthCount > 0 && (
-                  <span className="text-[10px] font-semibold text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded-full border border-rose-500/30 whitespace-nowrap">
-                    ⚠️ {wordValidation.invalidLengthCount} word(s) &gt;32 chars
-                  </span>
-                )}
-                {wordValidation.exceededMaxCount > 0 && (
-                  <span className="text-[10px] font-semibold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30 whitespace-nowrap">
-                    ⚠️ Max 100 words reached ({wordValidation.exceededMaxCount} extra omitted)
-                  </span>
-                )}
-              </div>
-
-              {/* Checkbox: Use custom words only */}
-              <label
-                className={`flex items-center gap-1.5 select-none text-xs font-semibold shrink-0 whitespace-nowrap ${
-                  isHost ? 'text-slate-300 hover:text-white cursor-pointer' : 'text-slate-500 cursor-not-allowed'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  disabled={!isHost}
-                  checked={Boolean(currentRoom.settings.onlyCustomWords)}
-                  onChange={(e) => handleSettingChange({ onlyCustomWords: e.target.checked })}
-                  className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                />
-                <span className="text-[11px] whitespace-nowrap">Use custom words only</span>
-              </label>
-            </div>
-
-            {isHost ? (
-              /* Host View: Open Textarea by Default */
-              <div className="space-y-2">
-                <textarea
-                  value={customWordsText}
-                  onChange={handleWordsInputChange}
-                  maxLength={20000}
-                  onBlur={() => {
-                    if (
-                      wordValidation.duplicateCount > 0 ||
-                      wordValidation.invalidLengthCount > 0 ||
-                      wordValidation.exceededMaxCount > 0
-                    ) {
-                      setCustomWordsText(wordValidation.uniqueWords.join(', '));
-                    }
-                  }}
-                  placeholder="Minimum 10 words. 1-32 characters per word. Max 100 words & 20,000 characters total. Separated by commas or new lines."
-                  rows={4}
-                  className="w-full p-3 bg-slate-950 text-xs text-slate-200 rounded-xl border border-slate-700 focus:border-indigo-500 focus:outline-none font-mono resize-none transition-all placeholder-slate-500"
-                />
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>
-                    {wordValidation.uniqueWords.length < 10 ? (
-                      <span className="text-amber-400/90 font-medium">
-                        ⚠️ {wordValidation.uniqueWords.length}/10 words (min. 10 required for 'Custom words only').
-                      </span>
-                    ) : (
-                      <span>
-                        {wordValidation.uniqueWords.length}/100 unique words ({wordValidation.totalChars.toLocaleString()}/20,000 chars) • Auto-syncs
-                      </span>
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={isSavingWords}
-                    onClick={handleManualSaveWords}
-                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer transition-all shrink-0"
-                  >
-                    {isSavingWords ? 'Saving...' : 'Save Words'}
-                  </button>
+        {/* ROW 2 LEFT (7 cols): Custom Words Card (Private Rooms Only) */}
+        {!isPublicMatch && (
+          <div className="lg:col-span-7 p-5 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                  <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <h3 className="text-sm font-bold font-heading text-white whitespace-nowrap">Custom Words</h3>
+                  {currentRoom.settings.customWords && currentRoom.settings.customWords.length > 0 && (
+                    <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30 whitespace-nowrap">
+                      {currentRoom.settings.customWords.length}/100 words
+                    </span>
+                  )}
+                  {wordValidation.duplicateCount > 0 && (
+                    <span className="text-[10px] font-semibold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30 whitespace-nowrap">
+                      ⚠️ {wordValidation.duplicateCount} duplicate{wordValidation.duplicateCount > 1 ? 's' : ''} removed
+                    </span>
+                  )}
+                  {wordValidation.invalidLengthCount > 0 && (
+                    <span className="text-[10px] font-semibold text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded-full border border-rose-500/30 whitespace-nowrap">
+                      ⚠️ {wordValidation.invalidLengthCount} word(s) &gt;32 chars
+                    </span>
+                  )}
+                  {wordValidation.exceededMaxCount > 0 && (
+                    <span className="text-[10px] font-semibold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30 whitespace-nowrap">
+                      ⚠️ Max 100 words reached ({wordValidation.exceededMaxCount} extra omitted)
+                    </span>
+                  )}
                 </div>
-              </div>
-            ) : currentRoom.settings.customWords && currentRoom.settings.customWords.length > 0 ? (
-              /* Guest View: Tags */
-              <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1 scrollbar-thin">
-                {currentRoom.settings.customWords.map((word, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2.5 py-1 rounded-lg bg-slate-800 text-xs font-mono text-slate-300 border border-slate-700/60"
-                  >
-                    {word}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500">No custom words added by host yet.</p>
-            )}
-          </div>
-        </div>
 
-        {/* ROW 2 RIGHT (5 cols): Lobby Controls: Start Game Button Area */}
-        <div className="lg:col-span-5 p-4 sm:p-5 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col justify-center">
+                {/* Checkbox: Use custom words only */}
+                <label
+                  className={`flex items-center gap-1.5 select-none text-xs font-semibold shrink-0 whitespace-nowrap ${
+                    isHost ? 'text-slate-300 hover:text-white cursor-pointer' : 'text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    disabled={!isHost}
+                    checked={Boolean(currentRoom.settings.onlyCustomWords)}
+                    onChange={(e) => handleSettingChange({ onlyCustomWords: e.target.checked })}
+                    className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <span className="text-[11px] whitespace-nowrap">Use custom words only</span>
+                </label>
+              </div>
+
+              {isHost ? (
+                /* Host View: Open Textarea by Default */
+                <div className="space-y-2">
+                  <textarea
+                    value={customWordsText}
+                    onChange={handleWordsInputChange}
+                    maxLength={20000}
+                    onBlur={() => {
+                      if (
+                        wordValidation.duplicateCount > 0 ||
+                        wordValidation.invalidLengthCount > 0 ||
+                        wordValidation.exceededMaxCount > 0
+                      ) {
+                        setCustomWordsText(wordValidation.uniqueWords.join(', '));
+                      }
+                    }}
+                    placeholder="Minimum 10 words. 1-32 characters per word. Max 100 words & 20,000 characters total. Separated by commas or new lines."
+                    rows={4}
+                    className="w-full p-3 bg-slate-950 text-xs text-slate-200 rounded-xl border border-slate-700 focus:border-indigo-500 focus:outline-none font-mono resize-none transition-all placeholder-slate-500"
+                  />
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>
+                      {wordValidation.uniqueWords.length < 10 ? (
+                        <span className="text-amber-400/90 font-medium">
+                          ⚠️ {wordValidation.uniqueWords.length}/10 words (min. 10 required for 'Custom words only').
+                        </span>
+                      ) : (
+                        <span>
+                          {wordValidation.uniqueWords.length}/100 unique words ({wordValidation.totalChars.toLocaleString()}/20,000 chars) • Auto-syncs
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isSavingWords}
+                      onClick={handleManualSaveWords}
+                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer transition-all shrink-0"
+                    >
+                      {isSavingWords ? 'Saving...' : 'Save Words'}
+                    </button>
+                  </div>
+                </div>
+              ) : currentRoom.settings.customWords && currentRoom.settings.customWords.length > 0 ? (
+                /* Guest View: Tags */
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1 scrollbar-thin">
+                  {currentRoom.settings.customWords.map((word, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 text-xs font-mono text-slate-300 border border-slate-700/60"
+                    >
+                      {word}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">No custom words added by host yet.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ROW 2 RIGHT: Lobby Controls: Start Game Button Area */}
+        <div className={`${isPublicMatch ? 'lg:col-span-12 max-w-xl mx-auto w-full' : 'lg:col-span-5'} p-4 sm:p-5 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col justify-center`}>
           {isHost ? (
             <div className="space-y-3">
               <button
