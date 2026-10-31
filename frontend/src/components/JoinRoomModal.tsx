@@ -63,12 +63,14 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
     }
 
     const effectiveUsername = username.trim() || usePlayerStore.getState().ensureUsername();
+    const playerId = usePlayerStore.getState().ensurePlayerId();
 
     setError(null);
     setIsJoining(true);
 
     try {
       const res = await joinMultiplayerRoom(cleaned, {
+        id: playerId,
         username: effectiveUsername,
         avatar,
       });

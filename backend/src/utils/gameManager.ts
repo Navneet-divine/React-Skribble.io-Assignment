@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import { rooms, socketToRoom } from '../store/roomStore.js';
-import { serializeRoom } from './roomUtils.js';
-import { getThreeWordChoices } from '../constants/words.js';
+import { serializeRoom, getMaskedWord } from './roomUtils.js';
+import { generateWordChoices } from '../constants/words.js';
 
 /**
  * Transition the room to the next drawer's turn or end game if all rounds complete.
@@ -32,15 +32,21 @@ export function startNextTurn(io: Server, roomId: string) {
 
       io.to(roomId).emit('room:data', serializeRoom(room));
 
+      const winner = rankedPlayers[0];
+      const isTie = rankedPlayers.length > 1 && (rankedPlayers[0].score || 0) === (rankedPlayers[1].score || 0);
+      const matchSummaryText = isTie
+        ? `🏆 Match Complete! It's a tie for 1st place with ${winner?.score || 0} pts!`
+        : `🏆 Match Complete! 👑 ${winner?.username || 'Player'} wins with ${winner?.score || 0} pts!`;
+
       io.to(roomId).emit('chat:message', {
         id: `sys-${Date.now()}`,
         senderName: 'System',
-        text: `🏆 Match Complete! Both players are winners! Returning to lobby...`,
+        text: matchSummaryText,
         type: 'system',
         timestamp: Date.now(),
       });
 
-      // Automatically reset room and return both players to lobby after 6 seconds
+      // Automatically reset room and return players to lobby after 6 seconds
       setTimeout(() => {
         const r = rooms.get(roomId);
         if (!r || r.status !== 'game_end') return;
@@ -57,6 +63,7 @@ export function startNextTurn(io: Server, roomId: string) {
         r.players.forEach((p) => {
           p.isDrawing = false;
           p.hasGuessed = false;
+          p.score = 0;
         });
 
         io.to(roomId).emit('room:data', serializeRoom(r));
@@ -88,18 +95,41 @@ export function startNextTurn(io: Server, roomId: string) {
     p.hasGuessed = false;
   });
 
-  // Prepare 3 word choices
-  room.status = 'choosing';
-  room.wordChoices = getThreeWordChoices(
+  const configuredWordCount = room.settings.wordCount || 3;
+  const configuredGameMode = room.settings.gameMode || 'normal';
+
+  // Prepare word choices
+  room.wordChoices = generateWordChoices(
+    configuredWordCount,
+    configuredGameMode,
     room.settings.customWords,
-    room.settings.onlyCustomWords
+    room.settings.onlyCustomWords,
+    room.settings.language
   );
   room.strokes = [];
   room.revealedIndices = [];
   room.currentWord = '';
-  room.timeLeft = 15; // 15 seconds to select word
 
   const drawer = room.players.get(nextDrawerId);
+
+  // If wordCount === 1: automatically select it and start drawing immediately without requiring manual selection
+  if (configuredWordCount === 1 && room.wordChoices.length > 0) {
+    const singleWord = room.wordChoices[0];
+    io.to(roomId).emit('room:data', serializeRoom(room));
+    io.to(roomId).emit('chat:message', {
+      id: `sys-${Date.now()}`,
+      senderName: 'System',
+      text: `✏️ ${drawer?.username || 'A player'} is drawing!`,
+      type: 'system',
+      timestamp: Date.now(),
+    });
+
+    beginDrawingTurn(io, roomId, singleWord);
+    return;
+  }
+
+  room.status = 'choosing';
+  room.timeLeft = 15; // 15 seconds to select word
 
   // Broadcast room state to all clients so they transition into GameScreen
   io.to(roomId).emit('room:data', serializeRoom(room));
@@ -140,7 +170,7 @@ export function startNextTurn(io: Server, roomId: string) {
 
     if (r.timeLeft <= 0) {
       if (r.timerInterval) clearInterval(r.timerInterval);
-      const autoWord = r.wordChoices[0] || 'apple';
+      const autoWord = r.wordChoices[0] || 'APPLE';
       beginDrawingTurn(io, roomId, autoWord);
     }
   }, 1000);
@@ -162,8 +192,12 @@ export function beginDrawingTurn(io: Server, roomId: string, word: string) {
   room.currentWord = word.trim().toUpperCase();
   room.timeLeft = room.settings.drawTime || 80;
   room.strokes = [];
+  room.revealedIndices = [];
 
-  // Drawer gets full word
+  const isHiddenMode = room.settings.gameMode === 'hidden';
+  const isCombinationMode = room.settings.gameMode === 'combination';
+
+  // Drawer gets full secret word/phrase
   const drawer = room.currentDrawerId ? room.players.get(room.currentDrawerId) : null;
   if (drawer) {
     io.to(drawer.socketId).emit('word:secret', {
@@ -171,24 +205,49 @@ export function beginDrawingTurn(io: Server, roomId: string, word: string) {
     });
   }
 
-  // Guessers receive blanks / hints
+  // Guessers receive blanks / hints permitted by the selected game mode
+  const initialMask = getMaskedWord(room.currentWord, room.revealedIndices, room.settings.gameMode);
   socketToRoom.forEach(({ roomId: rId, playerId }, socketId) => {
     if (rId === roomId && playerId !== room.currentDrawerId) {
       io.to(socketId).emit('word:hint', {
-        length: room.currentWord.length,
+        length: isHiddenMode ? 0 : room.currentWord.length,
+        maskedWord: initialMask,
         revealedIndices: room.revealedIndices,
+        hidden: isHiddenMode,
+        gameMode: room.settings.gameMode,
       });
     }
   });
 
   io.to(roomId).emit('room:data', serializeRoom(room));
+
+  const announcementText = isHiddenMode
+    ? `🎨 Round ${room.currentRound}: Start drawing! (Hidden Word — Guess from drawing alone!)`
+    : isCombinationMode
+    ? `🎨 Round ${room.currentRound}: Start drawing! (Combination Mode — Two words combined)`
+    : `🎨 Round ${room.currentRound}: Start drawing! (${Array.from(room.currentWord.replace(/\s+/g, '')).length} letters)`;
+
   io.to(roomId).emit('chat:message', {
     id: `sys-${Date.now()}`,
     senderName: 'System',
-    text: `🎨 Round ${room.currentRound}: Start drawing! (${room.currentWord.length} letters)`,
+    text: announcementText,
     type: 'system',
     timestamp: Date.now(),
   });
+
+  // Calculate letters eligible for hints (skip spaces, '+' and symbols, supporting all 10 languages)
+  const letterIndices: number[] = [];
+  for (let i = 0; i < room.currentWord.length; i++) {
+    if (/\p{L}|\p{M}|\p{N}/u.test(room.currentWord[i])) {
+      letterIndices.push(i);
+    }
+  }
+
+  // In Hidden Mode, hints are completely disabled (0 hints).
+  // Otherwise, clamp hints so at least 1 letter remains unrevealed.
+  const configuredHints = room.settings.hints !== undefined ? room.settings.hints : 2;
+  const maxPossibleHints = Math.max(0, letterIndices.length - 1);
+  const targetHintsToReveal = isHiddenMode ? 0 : Math.min(configuredHints, maxPossibleHints);
 
   // Active drawing countdown timer
   room.timerInterval = setInterval(() => {
@@ -198,20 +257,35 @@ export function beginDrawingTurn(io: Server, roomId: string, word: string) {
     r.timeLeft -= 1;
     io.to(roomId).emit('timer:tick', { timeLeft: r.timeLeft, phase: 'drawing' });
 
-    // Mid-turn letter hint (only for guessers, NEVER the drawer!)
-    if (r.timeLeft === Math.floor(r.settings.drawTime / 2) && r.revealedIndices.length === 0) {
-      const hintIndex = Math.floor(Math.random() * r.currentWord.length);
-      r.revealedIndices.push(hintIndex);
-      socketToRoom.forEach(({ roomId: rId, playerId }, socketId) => {
-        if (rId === roomId && playerId !== r.currentDrawerId) {
-          io.to(socketId).emit('word:hint', {
-            length: r.currentWord.length,
-            revealedIndices: r.revealedIndices,
-            revealedChar: r.currentWord[hintIndex],
-            hintIndex,
+    // Progressive letter hint scheduling across available drawing time
+    if (targetHintsToReveal > 0 && r.revealedIndices.length < targetHintsToReveal) {
+      const hintStep = r.revealedIndices.length + 1;
+      // Distribute hints at evenly spaced intervals: e.g. for 2 hints at T*(2/3) and T*(1/3)
+      const triggerThreshold = Math.floor(r.settings.drawTime * (1 - hintStep / (targetHintsToReveal + 1)));
+
+      if (r.timeLeft <= triggerThreshold) {
+        const unrevealed = letterIndices.filter((idx) => !r.revealedIndices.includes(idx));
+        if (unrevealed.length > 1) {
+          const pickIndex = unrevealed[Math.floor(Math.random() * unrevealed.length)];
+          r.revealedIndices.push(pickIndex);
+
+          const updatedMask = getMaskedWord(r.currentWord, r.revealedIndices, r.settings.gameMode);
+          // Only guessers receive hint updates; drawer continues seeing secret word
+          socketToRoom.forEach(({ roomId: rId, playerId }, socketId) => {
+            if (rId === roomId && playerId !== r.currentDrawerId) {
+              io.to(socketId).emit('word:hint', {
+                length: r.currentWord.length,
+                maskedWord: updatedMask,
+                revealedIndices: r.revealedIndices,
+                revealedChar: r.currentWord[pickIndex],
+                hintIndex: pickIndex,
+                hidden: false,
+                gameMode: r.settings.gameMode,
+              });
+            }
           });
         }
-      });
+      }
     }
 
     if (r.timeLeft <= 0) {
@@ -235,16 +309,35 @@ export function endTurn(io: Server, roomId: string, reason: string) {
 
   room.status = 'round_end';
 
+  // Determine who actually guessed the secret word
+  const successfulGuessers = Array.from(room.players.values()).filter(
+    (p) => !p.isDrawing && p.hasGuessed
+  );
+
+  let formattedReason = reason;
+  if (successfulGuessers.length > 0) {
+    if (successfulGuessers.length === 1) {
+      formattedReason = `${successfulGuessers[0].username} guessed the word!`;
+    } else if (successfulGuessers.length === 2) {
+      formattedReason = `${successfulGuessers[0].username} & ${successfulGuessers[1].username} guessed the word!`;
+    } else {
+      const names = successfulGuessers.map((p) => p.username);
+      formattedReason = `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]} guessed the word!`;
+    }
+  } else if (reason === 'Time is up!') {
+    formattedReason = 'Time is up! Nobody guessed the word.';
+  }
+
   io.to(roomId).emit('turn:ended', {
     word: room.currentWord,
-    reason,
+    reason: formattedReason,
     players: Array.from(room.players.values()),
   });
 
   io.to(roomId).emit('chat:message', {
     id: `sys-${Date.now()}`,
     senderName: 'System',
-    text: `🔔 Turn ended! The secret word was: "${room.currentWord}"`,
+    text: `🔔 Turn ended! The secret word was: "${room.currentWord}" (${formattedReason})`,
     type: 'system',
     timestamp: Date.now(),
   });

@@ -10,33 +10,35 @@ export const CountrySelect: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Find currently selected country or default to US
+  // Find currently selected language or default to en
+  const cleanLang = (language || 'en').toLowerCase();
   const selectedCountry =
-    ALL_COUNTRIES.find((c) => c.code.toLowerCase() === language.toLowerCase()) ||
+    ALL_COUNTRIES.find((c) => c.code.toLowerCase() === cleanLang) ||
+    (['us', 'gb', 'uk', 'au', 'ca'].includes(cleanLang) ? ALL_COUNTRIES.find((c) => c.code === 'en') : undefined) ||
     ALL_COUNTRIES[0];
 
-  // Filter countries: A-Z sorted, with prefix match priority (e.g. typing "i" shows countries starting with "i")
+  // Filter languages: prefix match priority
   const query = searchQuery.trim().toLowerCase();
   const filteredCountries = React.useMemo(() => {
     if (!query) {
       return ALL_COUNTRIES;
     }
 
-    // 1. Countries whose name starts with the search query (e.g. "i" -> Iceland, India, Indonesia...)
-    const startsWithName = ALL_COUNTRIES.filter((c) =>
-      c.name.toLowerCase().startsWith(query)
+    const startsWithName = ALL_COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().startsWith(query) ||
+        c.nativeName.toLowerCase().startsWith(query)
     );
 
-    // If matches starting with the letter/phrase exist, show them directly sorted A to Z
     if (startsWithName.length > 0) {
       return startsWithName;
     }
 
-    // Fallback: If no country starts with the term, check if language starts with query or name contains query
     return ALL_COUNTRIES.filter(
       (c) =>
         c.name.toLowerCase().includes(query) ||
-        c.language.toLowerCase().startsWith(query) ||
+        c.nativeName.toLowerCase().includes(query) ||
+        c.language.toLowerCase().includes(query) ||
         c.code.toLowerCase() === query
     );
   }, [query]);
@@ -84,7 +86,7 @@ export const CountrySelect: React.FC = () => {
           <span className="text-lg leading-none shrink-0">{selectedCountry.flag}</span>
           <span className="truncate text-slate-100 font-semibold">{selectedCountry.name}</span>
           <span className="text-xs text-slate-400 font-normal shrink-0">
-            ({selectedCountry.language.split('/')[0].trim()})
+            ({selectedCountry.nativeName})
           </span>
         </div>
         <ChevronDown
@@ -105,7 +107,7 @@ export const CountrySelect: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search country or language..."
+              placeholder="Search language..."
               className="w-full py-1.5 px-2 bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
             />
             {searchQuery && (
@@ -123,12 +125,12 @@ export const CountrySelect: React.FC = () => {
           <div className="px-3 py-1.5 bg-slate-800/40 border-b border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400">
             <span className="flex items-center gap-1">
               <Globe className="w-3 h-3 text-indigo-400" />
-              <span>Select Word Language & Region</span>
+              <span>Select Word Language</span>
             </span>
-            <span>{filteredCountries.length} countries</span>
+            <span>{filteredCountries.length} languages</span>
           </div>
 
-          {/* Country List - Scrollable */}
+          {/* Language List - Scrollable */}
           <div className="max-h-60 overflow-y-auto p-1.5 space-y-0.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
             {filteredCountries.length > 0 ? (
               filteredCountries.map((country) => {
@@ -154,7 +156,7 @@ export const CountrySelect: React.FC = () => {
                           isSelected ? 'text-indigo-200' : 'text-slate-400'
                         }`}
                       >
-                        • {country.language}
+                        • {country.nativeName}
                       </span>
                     </div>
 
@@ -164,7 +166,7 @@ export const CountrySelect: React.FC = () => {
               })
             ) : (
               <div className="py-6 text-center text-xs text-slate-500">
-                No countries found matching &ldquo;{searchQuery}&rdquo;
+                No languages found matching &ldquo;{searchQuery}&rdquo;
               </div>
             )}
           </div>

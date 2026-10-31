@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { type AvatarConfig, AVATAR_PALETTES } from '../types/game';
 
 interface PlayerState {
+  playerId: string;
   username: string;
   avatar: AvatarConfig;
   language: string;
@@ -14,6 +15,7 @@ interface PlayerState {
   cycleSeed: (direction: 'next' | 'prev') => void;
   ensureUsername: () => string;
   randomizeUsername: () => string;
+  ensurePlayerId: () => string;
 }
 
 const ADJECTIVES = [
@@ -44,6 +46,7 @@ const DEFAULT_SEEDS = [
 export const usePlayerStore = create<PlayerState>()(
   persist(
     (set, get) => ({
+      playerId: '',
       username: '',
       avatar: {
         style: 'bottts-neutral',
@@ -51,6 +54,15 @@ export const usePlayerStore = create<PlayerState>()(
         backgroundColor: AVATAR_PALETTES[0],
       },
       language: 'en',
+
+      ensurePlayerId: () => {
+        let currentId = get().playerId;
+        if (!currentId) {
+          currentId = `p-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+          set({ playerId: currentId });
+        }
+        return currentId;
+      },
 
       setUsername: (username: string) => set({ username }),
       setLanguage: (language: string) => set({ language }),

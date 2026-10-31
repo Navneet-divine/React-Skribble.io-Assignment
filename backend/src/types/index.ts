@@ -15,7 +15,13 @@ export interface Player {
   isDrawing: boolean;
   hasGuessed: boolean;
   joinedAt: number;
+  isDisconnected?: boolean;
+  disconnectTimeout?: NodeJS.Timeout;
 }
+
+export type GameMode = 'normal' | 'hidden' | 'combination';
+export type WordCountOption = 1 | 2 | 3 | 4 | 5;
+export type HintsOption = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface RoomSettings {
   rounds: number;
@@ -24,6 +30,9 @@ export interface RoomSettings {
   language: string;
   customWords: string[];
   onlyCustomWords: boolean;
+  gameMode: GameMode;
+  wordCount: WordCountOption;
+  hints: HintsOption;
 }
 
 export interface NormalizedPoint {

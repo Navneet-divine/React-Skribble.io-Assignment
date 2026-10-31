@@ -97,7 +97,7 @@ export const WordChoiceModal: React.FC<WordChoiceModalProps> = ({
           </h2>
         </div>
         <p className="text-xs text-slate-400 mb-5">
-          Pick one of the 3 choices before the timer runs out.
+          Pick one of the {words.length} {words.length === 1 ? 'choice' : 'choices'} before the timer runs out.
         </p>
 
         {/* Timer Bar */}
@@ -116,32 +116,43 @@ export const WordChoiceModal: React.FC<WordChoiceModalProps> = ({
           </div>
         </div>
 
-        {/* 3 Word Cards */}
-        <div className="w-full grid grid-cols-1 gap-3">
-          {words.map((item, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => onSelectWord(item.word)}
-              className="group relative flex items-center justify-between p-4 bg-slate-800/70 hover:bg-indigo-950/40 border border-slate-700/80 hover:border-indigo-500/60 rounded-2xl shadow-sm hover:shadow-indigo-950/40 transition-all duration-200 cursor-pointer text-left"
-            >
-              <div className="flex flex-col">
-                <span className="text-lg font-black tracking-wider text-white uppercase group-hover:text-indigo-200 transition-colors font-heading">
-                  {item.word}
-                </span>
-                <span className="text-xs text-slate-400">
-                  {item.word.length} letters
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {getDifficultyBadge(item.difficulty)}
-                <div className="w-7 h-7 rounded-full bg-slate-700/60 group-hover:bg-indigo-600 flex items-center justify-center text-slate-400 group-hover:text-white transition-all shadow-sm">
-                  <Check className="w-3.5 h-3.5" />
+        {/* Word Choice Cards (supports 1 to 5 choices) */}
+        <div className="w-full grid grid-cols-1 gap-2.5 max-h-[55vh] overflow-y-auto pr-1">
+          {words.map((item, idx) => {
+            const isCombo = item.word.includes('+');
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => onSelectWord(item.word)}
+                className="group relative flex items-center justify-between p-3.5 bg-slate-800/70 hover:bg-indigo-950/40 border border-slate-700/80 hover:border-indigo-500/60 rounded-2xl shadow-sm hover:shadow-indigo-950/40 transition-all duration-200 cursor-pointer text-left"
+              >
+                <div className="flex flex-col">
+                  <span className="text-base sm:text-lg font-black tracking-wider text-white uppercase group-hover:text-indigo-200 transition-colors font-heading">
+                    {item.word}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {isCombo
+                      ? 'Combination Prompt'
+                      : `${item.word.replace(/\s+/g, '').length} letters`}
+                  </span>
                 </div>
-              </div>
-            </button>
-          ))}
+
+                <div className="flex items-center gap-2">
+                  {isCombo ? (
+                    <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 border border-amber-500/30 px-2 py-0.5 rounded-full uppercase">
+                      Combo
+                    </span>
+                  ) : (
+                    getDifficultyBadge(item.difficulty)
+                  )}
+                  <div className="w-7 h-7 rounded-full bg-slate-700/60 group-hover:bg-indigo-600 flex items-center justify-center text-slate-400 group-hover:text-white transition-all shadow-sm">
+                    <Check className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

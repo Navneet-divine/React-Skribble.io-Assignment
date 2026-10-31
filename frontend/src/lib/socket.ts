@@ -2,7 +2,9 @@ import { io, Socket } from 'socket.io-client';
 import { type DrawingStroke, type AvatarConfig } from '../types/game';
 import { type RoomSettings } from '../types/room';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+const BACKEND_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BACKEND_URL) ||
+  'http://localhost:5001';
 
 // Singleton socket connection
 export const socket: Socket = io(BACKEND_URL, {
@@ -108,6 +110,25 @@ export function returnToLobby() {
   if (socket.connected) {
     socket.emit('game:return_to_lobby');
   }
+}
+
+export function updateRoomSettingsOnServer(
+  roomId: string,
+  settings: Partial<RoomSettings>
+): Promise<{ success: boolean; room?: any; error?: string }> {
+  return new Promise((resolve) => {
+    if (!socket.connected) {
+      resolve({ success: false, error: 'Socket disconnected' });
+      return;
+    }
+    socket.emit(
+      'room:settings:update',
+      { roomId, settings },
+      (response: { success: boolean; room?: any; error?: string }) => {
+        resolve(response || { success: true });
+      }
+    );
+  });
 }
 
 

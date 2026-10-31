@@ -18,10 +18,11 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
   - Empty or unentered names are automatically populated with fun, memorable usernames (e.g., `HappyOtter42`, `DoodleFox78`, `SwiftFalcon91`).
   - Interactive dice button right inside the name input allowing players to quickly shuffle names before joining or creating a room.
   - Automatically syncs to lobby rosters, in-game scoreboards, and chat feeds.
-- **🌍 Searchable Global Country & Language Selector**
+- **🌍 Streamlined 10-Language Selector with Native Names & Flags**
   - Built with **shadcn/ui** combobox pattern.
-  - Complete catalog of **50+ worldwide countries and locales**, sorted **A to Z**.
-  - **Instant prefix search** (e.g., typing `"i"` immediately lists countries starting with "I" such as *Iceland, India, Indonesia, Ireland, Israel, Italy*).
+  - Tailored to **10 core languages** with flags and native names: English (🇺🇸), Hindi (🇮🇳 हिन्दी), Greek (🇬🇷 Ελληνικά), German (🇩🇪 Deutsch), French (🇫🇷 Français), Spanish (🇪🇸 Español), Italian (🇮🇹 Italiano), Portuguese (🇵🇹 Português), Dutch (🇳🇱 Nederlands), and Polish (🇵🇱 Polski).
+  - English is preserved as the default language.
+  - **Instant prefix search** across English and native names (e.g., typing `"h"` or `"हि"` finds Hindi).
 - **💾 Persistent Player Storage**
   - Seamless state persistence using **Zustand** and browser `localStorage`.
   - Player username, custom avatar configuration, and selected language are saved automatically across reloads and future game screens.
@@ -32,10 +33,16 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 ---
 
 ### Phase 2: Private Room Creation & Link Generation ✅
-- **🛠️ Room Configuration Modal**
-  - **Rounds Selector**: Quick pill buttons (`2`, `3 (Default)`, `4`, `5`, `6`, `8`, `10`).
-  - **Turn Duration**: Draw time selection (`30s`, `45s`, `60s`, `75s`, `80s (Default)`, `90s`, `100s`, `120s`).
-  - **Max Players Stepper**: Team capacity (`4`, `6`, `8 (Standard)`, `10`, `12`, `16`).
+- **🛠️ Extended Room Configuration Modal**
+  - **Rounds Selector**: Quick pill buttons (`2`, `3 (Default)`, `4`, `5`, `6`, `7`, `8`, `9`, `10`).
+  - **Turn Duration**: Comprehensive draw times (`15s`, `30s`, `45s`, `60s`, `75s`, `80s (Default)`, `90s`, `100s`, `110s`, `120s`, `135s`, `150s`, `165s`, `180s`, `200s`, `240s`).
+  - **Max Players Capacity**: Skribbl.io-style button pills supporting from `2` up to `20` players (`2` to `20`).
+  - **Game Mode Selector**:
+    - **Normal**: Secret word length placeholders (`_ _ _ _`) with progressive letter reveals.
+    - **Hidden**: Drawing-only challenge with no length or letter hints (`???`).
+    - **Combination**: Two distinct concepts joined as a compound prompt (e.g. `APPLE + TREE`).
+  - **Word Count Selector**: Drawer word choices from `1` to `5` (`3` default), with instant drawing start when set to `1`.
+  - **Hints Selector**: Configurable hint cap from `0` to `5` (`2` default) distributed across the round duration.
   - **Word Dictionary Language**: Integrated country dropdown for word language selection.
 - **🏢 Team Custom Words System**
   - Custom words input textarea with real-time word counter badge (*"X words added"*).
@@ -49,7 +56,7 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 
 ### Phase 3: Waiting Lobby, Host Controls & Session Persistence ✅
 - **🛋️ Interactive Waiting Lobby**
-  - Room code badge (`DOODLE-XXXX`) and quick setting pills (rounds, turn time, language).
+  - Room code badge (`DOODLE-XXXX`) and quick setting pills (game mode, word choices, hints, rounds, turn time, language).
   - Live player roster with avatar preview cards, ready status indicators, and open slot placeholders.
   - **Host Controls**: Room creator is highlighted with an exclusive **Crown Badge (`👑 Room Host`)**, controls to kick players, and an emerald **"Start Game"** launch button.
   - **Minimum Player Guard**: Requires at least 2 connected players to start a game, preventing accidental solo starts and informing the host with friendly toast notifications.
@@ -132,13 +139,103 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 
 ---
 
+### Phase 9: Skribbl.io Advanced Game Modes, Dynamic Word Choices & Progressive Hints ✅
+- **🎮 3 Distinct Game Modes**
+  - **Normal Mode**: Classic Skribbl.io guessing experience. Guesser displays reflect secret word character lengths (`_ _ _ _`), progressive letter reveals appear over time, and the active drawer has full visibility.
+  - **Hidden Mode**: Stealth visual challenge. Word length indicators and letter hints are disabled for guessers (`🔒 Hidden Mode (??? )`), requiring pure visual deduction from canvas strokes. Secret words and choices are strictly protected on the server.
+  - **Combination Mode**: Compound prompt generator combining two distinct concepts from the dictionary (e.g. `APPLE + TREE`) without word duplication. The drawer illustrates both elements on the canvas; guessers must deduce the full combination phrase with intelligent punctuation and spacing normalization (`apple tree`, `apple + tree`, and `appletree` all evaluate accurately).
+- **🔢 Configurable Word Count (1 to 5 Choices)**
+  - Configurable drawer word options from `1` up to `5` choices (`3` default).
+  - **Instant Drawing Turn Auto-Start**: When configured to `1` choice, turns skip the choosing phase countdown and immediately open the drawing canvas with the word assigned, matching competitive speedrun gameplay.
+  - In Combination Mode, all choices feature unique two-word pairings with distinct badges in the selection modal.
+  - Server auto-selection fallback guarantees seamless turn progression if the drawer timer reaches `0s`.
+- **💡 Server-Authoritative Progressive Hint Engine (0 to 5 Hints)**
+  - Configurable hint allowance from `0` to `5` letters revealed (`2` default).
+  - **Dynamic Time-Distributed Reveal**: Calculates interval milestones evenly across turn duration (`drawTime`) to progressively uncover unrevealed letter indices.
+  - **Zero-Leak Protection**: Server never reveals 100% of the word early, ignores symbols and spaces (`+`), and suppresses hints completely in Hidden Mode regardless of setting.
+  - **Late Joiner Security**: Players connecting mid-turn receive the exact current masked state without exposing the raw secret word in `room:data` or `game:state`.
+- **🌍 Skribbl.io-Style 10-Language Selection & Curated Word Banks**
+  - **10 Fully Supported Languages**:
+    | Language | Code | Native Name | Flag | Word Bank & Target Audience |
+    |---|---|---|---|---|
+    | **English** | `en` | English | 🇺🇸 | International default (~105 drawing terms) |
+    | **Hindi** | `hi` | हिन्दी | 🇮🇳 | Curated Devanagari drawing terms (सेब, रॉकेट, हाथी...) |
+    | **Greek** | `el` | Ελληνικά | 🇬🇷 | Greece & Cyprus terms (μήλο, πύραυλος, κάστρο...) |
+    | **German** | `de` | Deutsch | 🇩🇪 | Germany & Austria terms (Apfel, Rakete, Schloss...) |
+    | **French** | `fr` | Français | 🇫🇷 | France & Belgium terms (pomme, fusée, château...) |
+    | **Spanish** | `es` | Español | 🇪🇸 | Spain & Latin America terms (manzana, cohete...) |
+    | **Italian** | `it` | Italiano | 🇮🇹 | Italy terms (mela, razzo, castello...) |
+    | **Portuguese** | `pt` | Português | 🇵🇹 | Portugal & Brazil terms (maçã, foguete, castelo...) |
+    | **Dutch** | `nl` | Nederlands | 🇳🇱 | Netherlands & Belgium terms (appel, raket, kasteel...) |
+    | **Polish** | `pl` | Polski | 🇵🇱 | Poland terms (jabłko, rakieta, zamek...) |
+  - **Comprehensive Unicode & Diacritics Normalization**:
+    - Uses Unicode character class matching (`/[^\p{L}\p{M}\p{N}]/gu`) so Greek and Hindi Devanagari letters with matras (`\p{M}`) are fully supported.
+    - Strips accents/diacritics for Latin and Greek: Greek `μήλο` matches guess `μηλο`, Spanish `plátano` matches `platano`, Dutch `pinguïn` matches `pinguin`.
+    - Handles special characters: Polish `ł` matches `l` (`jabłko` matches `jablko`, `żółw` matches `zolw`), German `ß` matches `ss` (`Fußball` matches `fussball`), Greek final sigma `ς` matches `σ`.
+  - **Dynamic Language Resolution (`resolveLanguageKey`)**: Intelligently resolves all 10 language codes (`en`, `hi`, `el`, `de`, `fr`, `es`, `it`, `pt`, `nl`, `pl`), localized native names, and regional country identifiers (`in`, `gr`, `cy`, `de`, `at`, `fr`, `es`, `it`, `pt`, `br`, `nl`, `pl`, `us`, `gb`).
+  - **Universal Game Mode Compatibility**: Full support across **Normal**, **Hidden**, and **Combination** modes in every language (e.g. Hindi `दीवार + हाथी`, Greek `ΜΉΛΟ + ΔΈΝΤΡΟ`).
+- **📝 Custom Words System: Mix vs. Only Custom Words**
+  - **Mix Custom Words**: Seamlessly blends custom words into the active language word bank for higher variety.
+  - **Only Custom Words**: Exclusively draws from the host's custom list, disabling the standard dictionary.
+  - **Combination Mode Compatibility**: In Combination Mode with Only Custom Words, prompts pair distinct custom words (e.g. `BURGER + FRIES`) without duplicates.
+  - **Real-Time Lobby Room Settings (Skribbl.io Style via shadcn/ui DropdownMenu)**:
+    - Replaced basic HTML selects with accessible **shadcn/ui `DropdownMenu`** components (`@radix-ui/react-dropdown-menu`) directly in the lobby header navigation badges.
+    - While in the waiting lobby, the room host can dynamically adjust:
+      - **Players**: 2 to 20 maximum players with standard indicators.
+      - **Language**: All 10 supported languages (`en`, `hi`, `el`, `de`, `fr`, `es`, `it`, `pt`, `nl`, `pl`) with flag emojis, English names, and native localized titles.
+      - **Drawtime**: 15s to 240s drawing durations.
+      - **Rounds**: 2 to 10 rounds per match.
+      - **Game Mode**: `Normal`, `Hidden`, and `Combination` modes with descriptive subtitles.
+      - **Word Count**: 1 to 5 word choices (1 choice enables Instant Draw).
+      - **Hints**: 0 to 5 hint letters revealed (dynamically disabled with "No Hints" badge in Hidden Mode).
+    - All updates emit `room:settings:update` with strict host authority validation on the server, broadcasting `room:data` via WebSocket so all connected players see changes live in real-time.
+    - Non-host guests view settings in clean, read-only badges that automatically update without reloading.
+  - **Skribbl.io-Style Live Lobby Chat & Mobile Split Layout**:
+    - **Scoped Chat Scrolling & Fixed Row Height**: Lobby chat messages container is locked to `h-[285px]` matching the Players in Lobby card, preventing the card from stretching down the page on heavy message traffic. Auto-scrolling is strictly scoped to the chat container via `scrollTop`, completely eliminating unwanted webpage window jumping when typing or sending messages.
+    - **Full Product Custom Words Validation & Limits**:
+      - **Minimum**: 10 custom words required when "Use custom words only" is enabled (with real-time warning and Start Game button lockout until minimum requirement is fulfilled).
+      - **Maximum**: 100 unique custom words cap (any excess beyond 100 is automatically flagged and trimmed).
+      - **Per-Word Length Limit**: 1 to 32 characters per entry (words exceeding 32 characters are rejected with a badge alert).
+      - **Total Input Limit**: Up to 20,000 total characters supported with a real-time character counter.
+      - **Flexible Delimiters**: Seamlessly accepts both comma-separated values (`,`) and new lines (`\n`, `\r\n`).
+      - **Sanitization & Clean-up**: Automatically removes empty lines/commas and collapses redundant whitespace while preserving valid multi-word phrases (e.g. `hot dog`).
+      - **Case-Insensitive Deduplication**: Prevents duplicate words (e.g., `Cat`, `cat`, and `CAT` resolve to one entry) with live feedback showing how many duplicates were omitted.
+      - **Multilingual Support**: Supports multilingual words across scripts (Hindi, Spanish, Japanese, Cyrillic, Greek, accented characters, etc.).
+    - **Desktop 2x2 Grid Alignment**: Left and right columns share identical row baselines across desktop viewports, with Row 1 (Players & Chat) locked to 285px and Row 2 (Custom Words & Start Game) neatly aligned.
+    - **Mobile Side-by-Side Panel Layout**: On mobile viewports (`< lg`), the lobby displays a simultaneous 50-50 side-by-side split row matching the in-game arena layout (compact players roster on the left, live lobby chat feed on the right, with a full-width chat input bar pinned below).
+  - **🚪 Leave Room Confirmation Modals**:
+    - Clicking "Leave Room" (both in the Waiting Lobby and in the Game Header during an active game) now triggers a confirmation modal dialog (`Dialog` from `@radix-ui/react-dialog`) asking "Are you sure you want to leave?".
+    - Provides clear warnings (warning hosts that leaving will transfer host privileges to another player, and warning players that in-game progress/scores will be forfeited) with "Stay in Room" (cancel) and "Yes, Leave Room" (confirm) actions.
+- **🏆 True Competitive Ranking & Winner Podium (`GameOverModal.tsx`)**
+  - Displays accurate final placements sorted strictly by player score (`👑 1st Place`, `🥈 2nd Place`, `🥉 3rd Place`, `#N`).
+  - Distinguishes solitary winners from genuine score ties (`🤝 It's a Tie!`), resolving previous behavior where all participants were labeled winners regardless of points.
+- **🔄 Fresh Match Clean-Slate & Score Resets**
+  - Player scores, guessed states, and drawing flags are automatically reset to `0` upon returning to the lobby (`game:return_to_lobby`, default victory, or new match launch), preventing previous game points from contaminating new matches.
+- **📣 Specific Guesser Attribution on Turn End**
+  - Replaced generic turn-ending notices with explicit attribution identifying the exact player(s) who guessed the word (e.g., `SwiftFox66 guessed the word!`, `Alice & Bob guessed the word!`, or `Time is up! Nobody guessed the word.`).
+- **💬 Chat Input Ergonomics & Adaptive Mobile Canvas (`GuessChat.tsx`, `GameScreen.tsx`)**
+  - **50-50 Split Row for Mobile Arena**: The mobile in-game scores and live chat feed now share an exact 50-50 column width (`grid-cols-2`), matching the waiting lobby layout for visual balance and consistency.
+  - **Guess Input Padding**: Integrated `pr-20` padding into the guess chat input when a player has already guessed, eliminating text overlap with the `✓ Guessed` status badge.
+- **⚡ Seamless In-Game Reconnection & Live Clock Persistence (`socketHandler.ts`, `App.tsx`, `playerStore.ts`, `roomStore.ts`, `GameScreen.tsx`)**
+  - **Uninterrupted Match Continuity**: When a player refreshes their browser (F5 / Cmd+R) or experiences a temporary network drop during an active game, the match is **never terminated** or reset.
+  - **Zero Initial Flicker (Eliminated 80s Default Flash)**: Reconnecting or refreshing directly rehydrates the exact live ticking time from the persisted store state (`useRoomStore.getState().timeLeft` adjusted with elapsed seconds) and authoritative WebSocket payload (`res.room.timeLeft`), eliminating the initial `80s` / chosen draw time fallback flash so the countdown displays seamlessly without jumping.
+  - **Live Authoritative Server Clock**: The server countdown timer keeps running uninterrupted. For example, if an 80-second round has 15 seconds remaining when Player A refreshes, Player B's screen smoothly continues ticking down (`15s` ➔ `14s` ➔ `13s` ➔ `12s` ➔ `11s` ➔ `10s`). When Player A re-establishes connection 5 seconds later, Player A immediately receives the live room clock at `10s` in 100% synchronization with Player B.
+  - **Persistent Session Handshake**: Each client preserves a stable `playerId` in persisted local storage (`doodlesync-player-storage`). On page load / refresh, `App.tsx` automatically reconnects to the active room using the persistent session identity.
+  - **Full Game State Recovery**: Upon rejoining, the server immediately restores:
+    - Current canvas drawing strokes history (`draw:history`).
+    - Active secret word for the drawer (`word:secret`) or masked blanks/revealed hints for guessers (`word:hint`).
+    - Real-time countdown timer (`timer:tick`) and current player score standings (`room:data`).
+  - **Grace Period vs. Deliberate Leave**: Disconnections trigger a 20-second grace window (holding the player's slot open while the match clock continues). Only if a player fails to reconnect within 20 seconds does the server award default victory or advance the turn. Deliberately clicking "Leave Room" or "Leave Game" via the confirmation modal still exits immediately.
+
+---
+
 ## 🛠️ Tech Stack
 
 ### Frontend
 - **Framework**: [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
 - **Bundler**: [Vite 8](https://vitejs.dev/)
 - **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
-- **UI Components**: [shadcn/ui](https://ui.shadcn.com/) (Radix UI primitives)
+- **UI Components**: [shadcn/ui](https://ui.shadcn.com/) (`@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`)
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **State Management**: [Zustand](https://zustand.docs.pmnd.rs/) with `persist` middleware
 - **Real-time Client**: [Socket.IO Client](https://socket.io/)
@@ -159,7 +256,7 @@ React-Skribble.io-Assignment/
 ├── frontend/                         # React + Vite client
 │   ├── src/
 │   │   ├── components/               # Modular UI components
-│   │   │   ├── ui/                   # shadcn/ui Dialog primitives
+│   │   │   ├── ui/                   # shadcn/ui Radix primitives (dialog.tsx, dropdown-menu.tsx)
 │   │   │   ├── AvatarPicker.tsx      # DiceBear customizer & color palette
 │   │   │   ├── CountrySelect.tsx     # Searchable country/language combobox
 │   │   │   ├── CreateRoomModal.tsx   # Room settings & invite link modal
@@ -168,9 +265,9 @@ React-Skribble.io-Assignment/
 │   │   │   ├── Features.tsx          # "Made for Playing Together" cards
 │   │   │   ├── Footer.tsx            # Audio mute, credits & shadcn modals
 │   │   │   ├── GameHeader.tsx        # Clamped round tracker, word mask & urgency timer
-│   │   │   ├── GameOverModal.tsx     # Match completion modal ("Everyone is a winner!")
+│   │   │   ├── GameOverModal.tsx     # Match completion podium with true rankings & winner crown
 │   │   │   ├── GameScreen.tsx        # Main game arena (Desktop 3-col & Mobile split)
-│   │   │   ├── GuessChat.tsx         # Live chat feed & exported GuessChatInput
+│   │   │   ├── GuessChat.tsx         # Live chat feed with deduplication & Guessed badge
 │   │   │   ├── Header.tsx            # Custom DoodleSync brand & SVG logo
 │   │   │   ├── HomeCard.tsx          # Player entry card, auto-username & dice shuffle
 │   │   │   ├── HowToPlay.tsx         # 3-step quick guide
@@ -178,7 +275,7 @@ React-Skribble.io-Assignment/
 │   │   │   ├── Scoreboard.tsx        # Ranked player roster (Desktop & Compact mobile)
 │   │   │   ├── SpoilerWarningModal.tsx # Drawer anti-spoiler alert dialog
 │   │   │   ├── VictoryModal.tsx      # Host departure / default victory modal
-│   │   │   ├── WaitingLobby.tsx      # Lobby screen with player roster & host controls
+│   │   │   ├── WaitingLobby.tsx      # Lobby screen with live shadcn header settings & roster
 │   │   │   └── WordChoiceModal.tsx   # 3 word cards with live 15s server countdown
 │   │   ├── data/                     # 50+ worldwide countries catalog
 │   │   ├── lib/                      # Utility functions & singleton Socket.IO client
@@ -254,6 +351,22 @@ cd backend
 npm run build
 
 # Build frontend
+cd ../frontend
+npm run build
+```
+
+---
+
+### 4. Running Verification & Typechecks
+
+Validate TypeScript compilation across both frontend and backend services:
+
+```bash
+# Typecheck backend
+cd backend
+npx tsc --noEmit
+
+# Typecheck and build frontend
 cd ../frontend
 npm run build
 ```

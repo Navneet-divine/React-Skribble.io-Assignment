@@ -5,6 +5,9 @@ import {
   type RoomSettings,
   type Room,
   type DrawingStroke,
+  type GameMode,
+  type WordCountOption,
+  type HintsOption,
 } from '../types/index.js';
 import {
   generateRoomCode,
@@ -12,6 +15,8 @@ import {
   serializeRoom,
   calculateGuessScore,
   isCloseGuess,
+  normalizeAnswer,
+  getMaskedWord,
 } from '../utils/roomUtils.js';
 import {
   startNextTurn,
@@ -19,19 +24,56 @@ import {
   endTurn,
 } from '../utils/gameManager.js';
 
+/**
+ * Sanitizes, validates, and deduplicates custom words:
+ * - Max 100 unique words
+ * - 1-32 chars per entry (allows internal spaces and multilingual UTF-8 characters)
+ * - Max 20,000 characters input
+ * - Delimited by commas and newlines
+ * - Case-insensitive deduplication
+ */
+export function sanitizeAndDeduplicateCustomWords(rawInput: any): string[] {
+  let list: string[] = [];
+  if (Array.isArray(rawInput)) {
+    list = rawInput.map((item) => String(item));
+  } else if (typeof rawInput === 'string') {
+    list = rawInput.slice(0, 20000).split(/[\n,\r]+/);
+  } else {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const raw of list) {
+    const trimmed = String(raw).trim().replace(/\s+/g, ' ');
+    if (trimmed.length >= 1 && trimmed.length <= 32) {
+      const lower = trimmed.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        unique.push(trimmed);
+        if (unique.length >= 100) break; // Maximum 100 custom words product limit
+      }
+    }
+  }
+
+  return unique;
+}
+
 export function registerSocketHandlers(io: Server) {
   io.on('connection', (socket: Socket) => {
     console.log(`⚡ Client connected: ${socket.id}`);
 
     // 1. Room Creation
-    socket.on('room:create', ({ settings, player }: { settings: RoomSettings; player: Partial<Player> }, callback) => {
+    socket.on('room:create', ({ settings, player }: { settings: RoomSettings; player?: Partial<Player> }, callback) => {
       const roomId = generateRoomCode();
+      const playerData = player || {};
 
       const hostPlayer: Player = {
-        id: player.id || `p-${Date.now()}`,
+        id: playerData.id || `p-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         socketId: socket.id,
-        username: player.username?.trim() || generateMeaningfulUsername(),
-        avatar: player.avatar || {
+        username: playerData.username?.trim() || generateMeaningfulUsername(),
+        avatar: playerData.avatar || {
           style: 'bottts-neutral',
           seed: 'Host',
           backgroundColor: 'b6e3f4',
@@ -44,27 +86,40 @@ export function registerSocketHandlers(io: Server) {
         joinedAt: Date.now(),
       };
 
+      const roundsCount = Math.min(10, Math.max(2, Number(settings?.rounds) || 3));
+      const drawTimeSec = Math.min(240, Math.max(15, Number(settings?.drawTime) || 80));
+      const validGameModes: GameMode[] = ['normal', 'hidden', 'combination'];
+      const gameMode: GameMode = validGameModes.includes(settings?.gameMode) ? settings.gameMode : 'normal';
+      const wordCount: WordCountOption = Math.min(5, Math.max(1, Number(settings?.wordCount) || 3)) as WordCountOption;
+      const hints: HintsOption = Math.min(
+        5,
+        Math.max(0, settings?.hints !== undefined ? Number(settings.hints) : 2)
+      ) as HintsOption;
+
       const newRoom: Room = {
         id: roomId,
         settings: {
-          rounds: settings?.rounds || 3,
-          drawTime: settings?.drawTime || 80,
-          maxPlayers: settings?.maxPlayers || 8,
-          language: settings?.language || 'us',
-          customWords: settings?.customWords || [],
+          rounds: roundsCount,
+          drawTime: drawTimeSec,
+          maxPlayers: Math.min(20, Math.max(2, Number(settings?.maxPlayers) || 8)),
+          language: settings?.language || 'en',
+          customWords: sanitizeAndDeduplicateCustomWords(settings?.customWords),
           onlyCustomWords: settings?.onlyCustomWords || false,
+          gameMode,
+          wordCount,
+          hints,
         },
         status: 'lobby',
         players: new Map([[hostPlayer.id, hostPlayer]]),
         currentRound: 1,
-        totalRounds: settings?.rounds || 3,
+        totalRounds: roundsCount,
         currentDrawerId: null,
         drawerOrder: [hostPlayer.id],
         drawerIndex: 0,
         currentWord: '',
         wordChoices: [],
         revealedIndices: [],
-        timeLeft: settings?.drawTime || 80,
+        timeLeft: drawTimeSec,
         strokes: [],
       };
 
@@ -81,7 +136,74 @@ export function registerSocketHandlers(io: Server) {
       socket.emit('room:data', serializeRoom(newRoom));
     });
 
-    // 2. Room Joining
+    // 1.1 Room Settings Update (Host authority while in lobby)
+    socket.on(
+      'room:settings:update',
+      (
+        { roomId, settings }: { roomId: string; settings: Partial<RoomSettings> },
+        callback
+      ) => {
+        const normalizedRoomId = roomId?.trim().toUpperCase();
+        const room = rooms.get(normalizedRoomId);
+
+        if (!room) {
+          if (typeof callback === 'function') callback({ success: false, error: 'Room does not exist' });
+          return;
+        }
+
+        if (room.status !== 'lobby') {
+          if (typeof callback === 'function') callback({ success: false, error: 'Settings can only be changed in the lobby' });
+          return;
+        }
+
+        const session = socketToRoom.get(socket.id);
+        const player = session ? room.players.get(session.playerId) : null;
+        if (!player || !player.isHost) {
+          if (typeof callback === 'function') callback({ success: false, error: 'Only the host can modify room settings' });
+          return;
+        }
+
+        if (settings.language !== undefined) {
+          room.settings.language = String(settings.language).trim();
+        }
+        if (settings.customWords !== undefined) {
+          room.settings.customWords = sanitizeAndDeduplicateCustomWords(settings.customWords);
+        }
+        if (settings.onlyCustomWords !== undefined) {
+          room.settings.onlyCustomWords = Boolean(settings.onlyCustomWords);
+        }
+        if (settings.gameMode !== undefined && ['normal', 'hidden', 'combination'].includes(settings.gameMode)) {
+          room.settings.gameMode = settings.gameMode;
+        }
+        if (settings.wordCount !== undefined) {
+          room.settings.wordCount = Math.min(5, Math.max(1, Number(settings.wordCount) || 3)) as WordCountOption;
+        }
+        if (settings.hints !== undefined) {
+          room.settings.hints = Math.min(5, Math.max(0, Number(settings.hints) || 2)) as HintsOption;
+        }
+        if (settings.rounds !== undefined) {
+          const r = Math.min(10, Math.max(2, Number(settings.rounds) || 3));
+          room.settings.rounds = r;
+          room.totalRounds = r;
+        }
+        if (settings.drawTime !== undefined) {
+          const dt = Math.min(240, Math.max(15, Number(settings.drawTime) || 80));
+          room.settings.drawTime = dt;
+          room.timeLeft = dt;
+        }
+        if (settings.maxPlayers !== undefined) {
+          room.settings.maxPlayers = Math.min(20, Math.max(2, Number(settings.maxPlayers) || 8));
+        }
+
+        io.to(normalizedRoomId).emit('room:data', serializeRoom(room));
+
+        if (typeof callback === 'function') {
+          callback({ success: true, room: serializeRoom(room) });
+        }
+      }
+    );
+
+    // 2. Room Joining & Reconnection
     socket.on('room:join', ({ roomId, player }: { roomId: string; player: Partial<Player> }, callback) => {
       const normalizedRoomId = roomId.trim().toUpperCase();
       const room = rooms.get(normalizedRoomId);
@@ -93,6 +215,85 @@ export function registerSocketHandlers(io: Server) {
         return;
       }
 
+      // Check for reconnection of an existing player (by ID or matching username)
+      let existingPlayer: Player | undefined;
+      if (player?.id && room.players.has(player.id)) {
+        existingPlayer = room.players.get(player.id);
+      } else if (player?.username) {
+        const targetUsername = player.username.trim().toLowerCase();
+        existingPlayer = Array.from(room.players.values()).find(
+          (p) =>
+            p.username.trim().toLowerCase() === targetUsername &&
+            (p.isDisconnected || p.socketId !== socket.id)
+        );
+      }
+
+      if (existingPlayer) {
+        // Player reconnected within grace period!
+        if (existingPlayer.disconnectTimeout) {
+          clearTimeout(existingPlayer.disconnectTimeout);
+          existingPlayer.disconnectTimeout = undefined;
+        }
+
+        // Clean up old socket mapping
+        socketToRoom.delete(existingPlayer.socketId);
+
+        // Update with active socket ID and restore online status
+        existingPlayer.socketId = socket.id;
+        existingPlayer.isDisconnected = false;
+        if (player?.avatar) existingPlayer.avatar = player.avatar;
+
+        socketToRoom.set(socket.id, { roomId: normalizedRoomId, playerId: existingPlayer.id });
+        socket.join(normalizedRoomId);
+
+        console.log(`🟢 Player ${existingPlayer.username} (${existingPlayer.id}) RECONNECTED to room ${normalizedRoomId}`);
+
+        if (typeof callback === 'function') {
+          callback({ success: true, room: serializeRoom(room), player: existingPlayer, isReconnect: true });
+        }
+
+        // Deliver full room state directly to reconnected client and broadcast to others
+        socket.emit('room:data', serializeRoom(room));
+        io.to(normalizedRoomId).emit('room:data', serializeRoom(room));
+        io.to(normalizedRoomId).emit('chat:message', {
+          id: `sys-${Date.now()}`,
+          senderName: 'System',
+          text: `🟢 ${existingPlayer.username} reconnected!`,
+          type: 'system',
+          timestamp: Date.now(),
+        });
+
+        // Synchronize canvas history
+        if (room.strokes.length > 0) {
+          socket.emit('draw:history', { strokes: room.strokes });
+        }
+
+        // Synchronize real-time clock immediately to match server
+        socket.emit('timer:tick', { timeLeft: room.timeLeft, phase: room.status });
+
+        // Deliver role-appropriate word information based on current room phase
+        if (room.status === 'drawing') {
+          if (existingPlayer.id === room.currentDrawerId) {
+            socket.emit('word:secret', { word: room.currentWord });
+          } else {
+            const isHidden = room.settings.gameMode === 'hidden';
+            socket.emit('word:hint', {
+              length: isHidden ? 0 : room.currentWord.length,
+              maskedWord: getMaskedWord(room.currentWord, room.revealedIndices, room.settings.gameMode),
+              revealedIndices: room.revealedIndices,
+              hidden: isHidden,
+              gameMode: room.settings.gameMode,
+            });
+          }
+        } else if (room.status === 'choosing') {
+          if (existingPlayer.id === room.currentDrawerId && room.wordChoices.length > 0) {
+            socket.emit('word:choices', { choices: room.wordChoices, duration: room.timeLeft });
+          }
+        }
+
+        return;
+      }
+
       if (room.players.size >= room.settings.maxPlayers) {
         if (typeof callback === 'function') {
           callback({ success: false, error: 'Room has reached maximum capacity.' });
@@ -100,12 +301,12 @@ export function registerSocketHandlers(io: Server) {
         return;
       }
 
-      const playerId = player.id || `p-${Date.now()}`;
+      const playerId = player?.id || `p-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const newPlayer: Player = {
         id: playerId,
         socketId: socket.id,
-        username: player.username?.trim() || generateMeaningfulUsername(),
-        avatar: player.avatar || {
+        username: player?.username?.trim() || generateMeaningfulUsername(),
+        avatar: player?.avatar || {
           style: 'bottts-neutral',
           seed: `seed-${Date.now()}`,
           backgroundColor: 'ffd5dc',
@@ -146,6 +347,22 @@ export function registerSocketHandlers(io: Server) {
       if (room.strokes.length > 0) {
         socket.emit('draw:history', { strokes: room.strokes });
       }
+
+      // If joining mid-game during drawing phase, deliver role-appropriate word information
+      if (room.status === 'drawing') {
+        if (newPlayer.id === room.currentDrawerId) {
+          socket.emit('word:secret', { word: room.currentWord });
+        } else {
+          const isHidden = room.settings.gameMode === 'hidden';
+          socket.emit('word:hint', {
+            length: isHidden ? 0 : room.currentWord.length,
+            maskedWord: getMaskedWord(room.currentWord, room.revealedIndices, room.settings.gameMode),
+            revealedIndices: room.revealedIndices,
+            hidden: isHidden,
+            gameMode: room.settings.gameMode,
+          });
+        }
+      }
     });
 
     // 3. Start Game (Host only)
@@ -177,6 +394,11 @@ export function registerSocketHandlers(io: Server) {
       room.drawerOrder = Array.from(room.players.keys()).sort(() => 0.5 - Math.random());
       room.drawerIndex = 0;
       room.currentRound = 1;
+      room.players.forEach((p) => {
+        p.score = 0;
+        p.hasGuessed = false;
+        p.isDrawing = false;
+      });
 
       startNextTurn(io, room.id);
     });
@@ -207,7 +429,14 @@ export function registerSocketHandlers(io: Server) {
 
       if (room.currentDrawerId !== mapping.playerId) return;
 
-      beginDrawingTurn(io, room.id, word);
+      // Validate that the chosen word is one of the offered choices (never trust client)
+      const inputWord = word?.trim().toUpperCase();
+      const authorizedWord =
+        room.wordChoices.find((w) => w.toUpperCase() === inputWord) ||
+        room.wordChoices[0] ||
+        'APPLE';
+
+      beginDrawingTurn(io, room.id, authorizedWord);
     });
 
     // 6. Return to Lobby early from Game Over screen
@@ -229,12 +458,13 @@ export function registerSocketHandlers(io: Server) {
       room.players.forEach((p) => {
         p.isDrawing = false;
         p.hasGuessed = false;
+        p.score = 0;
       });
 
       io.to(room.id).emit('room:data', serializeRoom(room));
     });
 
-    // 5. Drawing Stroke Event
+    // 7. Drawing Stroke Event
     socket.on('draw:stroke', (stroke: DrawingStroke) => {
       const mapping = socketToRoom.get(socket.id);
       if (!mapping) return;
@@ -248,7 +478,7 @@ export function registerSocketHandlers(io: Server) {
       socket.to(mapping.roomId).emit('draw:stroke', stroke);
     });
 
-    // 6. Undo Stroke
+    // 8. Undo Stroke
     socket.on('draw:undo', () => {
       const mapping = socketToRoom.get(socket.id);
       if (!mapping) return;
@@ -260,7 +490,7 @@ export function registerSocketHandlers(io: Server) {
       io.to(mapping.roomId).emit('draw:undo');
     });
 
-    // 7. Clear Canvas
+    // 9. Clear Canvas
     socket.on('draw:clear', () => {
       const mapping = socketToRoom.get(socket.id);
       if (!mapping) return;
@@ -272,7 +502,7 @@ export function registerSocketHandlers(io: Server) {
       io.to(mapping.roomId).emit('draw:clear');
     });
 
-    // 8. Chat & Guess Handling
+    // 10. Chat & Guess Handling
     socket.on('chat:message', ({ text }: { text: string }) => {
       const mapping = socketToRoom.get(socket.id);
       if (!mapping) return;
@@ -286,18 +516,29 @@ export function registerSocketHandlers(io: Server) {
       const trimmed = text.trim();
       if (!trimmed) return;
 
-      const normalizedGuess = trimmed.toLowerCase();
-      const normalizedTarget = room.currentWord.toLowerCase();
+      const normGuess = normalizeAnswer(trimmed);
+      const normTarget = normalizeAnswer(room.currentWord);
 
-      // Prevent drawer from spoiling the secret word
-      if (room.currentDrawerId === sender.id && normalizedTarget && normalizedGuess.includes(normalizedTarget)) {
-        socket.emit('chat:warning', 'You are drawing! You cannot spoil the secret word.');
-        return;
+      // Prevent drawer from spoiling the secret word/phrase
+      if (room.currentDrawerId === sender.id && normTarget) {
+        const targetWords = room.currentWord
+          .toLowerCase()
+          .split(/[^\p{L}\p{M}\p{N}]+/u)
+          .filter((w) => w.length >= 3);
+
+        const isSpoiler =
+          (normGuess.length >= 3 && normTarget.includes(normGuess)) ||
+          targetWords.some((w) => trimmed.toLowerCase().includes(w));
+
+        if (isSpoiler) {
+          socket.emit('chat:warning', 'You are drawing! You cannot spoil the secret word.');
+          return;
+        }
       }
 
       // Handle guess during active drawing
       if (room.status === 'drawing' && room.currentDrawerId !== sender.id && !sender.hasGuessed) {
-        if (normalizedGuess === normalizedTarget) {
+        if (normGuess === normTarget) {
           sender.hasGuessed = true;
           const pointsEarned = calculateGuessScore(room.timeLeft, room.settings.drawTime);
           sender.score += pointsEarned;
@@ -328,7 +569,7 @@ export function registerSocketHandlers(io: Server) {
         }
 
         // Close guess hint
-        if (isCloseGuess(normalizedGuess, normalizedTarget)) {
+        if (isCloseGuess(normGuess, normTarget)) {
           socket.emit('chat:message', {
             id: `close-${Date.now()}`,
             senderName: 'System',
@@ -350,25 +591,26 @@ export function registerSocketHandlers(io: Server) {
       });
     });
 
-    // Helper: Handle player departure (via disconnect or explicit room:leave)
-    const handlePlayerDeparture = (departingSocket: Socket) => {
-      const mapping = socketToRoom.get(departingSocket.id);
-      if (!mapping) return;
-
-      socketToRoom.delete(departingSocket.id);
-      departingSocket.leave(mapping.roomId);
-
-      const room = rooms.get(mapping.roomId);
+    // Helper: Finalize permanent player departure (after grace period timeout or explicit leave)
+    const finalizePlayerDeparture = (roomId: string, playerId: string) => {
+      const room = rooms.get(roomId);
       if (!room) return;
 
-      const player = room.players.get(mapping.playerId);
-      const isHostLeaving = Boolean(player?.isHost);
-      const departingName = player?.username || 'A player';
+      const player = room.players.get(playerId);
+      if (!player) return;
 
-      room.players.delete(mapping.playerId);
-      room.drawerOrder = room.drawerOrder.filter((id) => id !== mapping.playerId);
+      if (player.disconnectTimeout) {
+        clearTimeout(player.disconnectTimeout);
+        player.disconnectTimeout = undefined;
+      }
 
-      console.log(`🚪 Player ${departingName} (${mapping.playerId}) left room ${room.id}`);
+      const isHostLeaving = Boolean(player.isHost);
+      const departingName = player.username || 'A player';
+
+      room.players.delete(playerId);
+      room.drawerOrder = room.drawerOrder.filter((id) => id !== playerId);
+
+      console.log(`🚪 Player ${departingName} (${playerId}) permanently departed room ${room.id}`);
 
       // 1. If room empty, clean up
       if (room.players.size === 0) {
@@ -417,6 +659,7 @@ export function registerSocketHandlers(io: Server) {
           room.drawerIndex = 0;
           winner.isDrawing = false;
           winner.hasGuessed = false;
+          winner.score = 0;
 
           const reason = isHostLeaving
             ? `The room host (${departingName}) left the game. You won the match and have been promoted to Room Host!`
@@ -443,8 +686,8 @@ export function registerSocketHandlers(io: Server) {
         }
 
         // If 2 or more players still remain:
-        if (room.currentDrawerId === mapping.playerId && room.status === 'drawing') {
-          endTurn(io, room.id, `${departingName} (drawer) disconnected.`);
+        if (room.currentDrawerId === playerId && room.status === 'drawing') {
+          endTurn(io, room.id, `${departingName} (drawer) left the game.`);
         } else {
           io.to(room.id).emit('room:data', serializeRoom(room));
           io.to(room.id).emit('chat:message', {
@@ -468,15 +711,56 @@ export function registerSocketHandlers(io: Server) {
       }
     };
 
-    // 9. Leave Room Event
+    // 9. Leave Room Event (Deliberate departure by clicking Leave Room / Leave Game)
     socket.on('room:leave', () => {
-      handlePlayerDeparture(socket);
+      const mapping = socketToRoom.get(socket.id);
+      if (mapping) {
+        socketToRoom.delete(socket.id);
+        socket.leave(mapping.roomId);
+        finalizePlayerDeparture(mapping.roomId, mapping.playerId);
+      }
     });
 
-    // 10. Disconnection & Cleanup
+    // 10. Disconnection & Cleanup (Page Refresh / Temporary network drop)
+    // Server timer continues ticking uninterrupted! Player has a 20s grace period to reconnect.
     socket.on('disconnect', () => {
       console.log(`🔌 Client disconnected: ${socket.id}`);
-      handlePlayerDeparture(socket);
+      const mapping = socketToRoom.get(socket.id);
+      if (!mapping) return;
+
+      socketToRoom.delete(socket.id);
+      socket.leave(mapping.roomId);
+
+      const room = rooms.get(mapping.roomId);
+      if (!room) return;
+
+      const player = room.players.get(mapping.playerId);
+      if (!player) return;
+
+      // Mark player as temporarily disconnected
+      player.isDisconnected = true;
+
+      // Grace period: 20 seconds during live game, 10 seconds in lobby
+      const GRACE_PERIOD_MS = room.status !== 'lobby' ? 20000 : 10000;
+
+      // Broadcast room data so other players can see the temporary disconnected status
+      io.to(room.id).emit('room:data', serializeRoom(room));
+      io.to(room.id).emit('chat:message', {
+        id: `sys-${Date.now()}`,
+        senderName: 'System',
+        text: `⚡ ${player.username} connection lost. Reconnecting... (Game timer continuing)`,
+        type: 'system',
+        timestamp: Date.now(),
+      });
+
+      player.disconnectTimeout = setTimeout(() => {
+        const r = rooms.get(mapping.roomId);
+        const p = r?.players.get(mapping.playerId);
+        if (p && p.isDisconnected) {
+          console.log(`⏱️ Reconnect grace period expired for ${p.username} (${p.id})`);
+          finalizePlayerDeparture(mapping.roomId, mapping.playerId);
+        }
+      }, GRACE_PERIOD_MS);
     });
   });
 }

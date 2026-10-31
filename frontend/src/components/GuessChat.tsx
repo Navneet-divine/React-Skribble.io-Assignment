@@ -67,7 +67,7 @@ export const GuessChatInput: React.FC<GuessChatInputProps> = ({
           maxLength={60}
           className={`w-full px-3 py-2 rounded-xl text-xs sm:text-sm bg-slate-950/80 border text-slate-100 placeholder:text-slate-500 focus:outline-none transition-all ${
             hasGuessed
-              ? 'border-emerald-500/40 bg-emerald-950/20 text-emerald-300 cursor-not-allowed'
+              ? 'border-emerald-500/40 bg-emerald-950/20 text-emerald-300 cursor-not-allowed pr-20'
               : 'border-slate-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
           }`}
         />

@@ -67,6 +67,40 @@ export const App: React.FC = () => {
   // Handle invitation link alert (only once when arriving via shared link without an active room)
   const hasAnnouncedInvite = React.useRef(false);
 
+  // Auto-reconnect on page refresh / load when room query param and stored room match
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    const savedRoom = useRoomStore.getState().currentRoom;
+
+    if (roomParam && savedRoom && savedRoom.id === roomParam) {
+      const { ensurePlayerId, ensureUsername, avatar } = usePlayerStore.getState();
+      const playerId = ensurePlayerId();
+      const username = ensureUsername();
+
+      joinMultiplayerRoom(roomParam, {
+        id: playerId,
+        username,
+        avatar,
+      }).then((res) => {
+        if (res.success && res.room) {
+          useRoomStore.getState().syncRoomData(res.room, username);
+          if (
+            res.room.status === 'choosing' ||
+            res.room.status === 'drawing' ||
+            res.room.status === 'round_end'
+          ) {
+            setScreen('game');
+            setGameStatus('playing');
+          } else if (res.room.status === 'lobby') {
+            setScreen('lobby');
+            setGameStatus('lobby');
+          }
+        }
+      });
+    }
+  }, [setGameStatus]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
@@ -187,13 +221,15 @@ export const App: React.FC = () => {
   const handlePlayFromHome = async () => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
-    const { avatar, ensureUsername } = usePlayerStore.getState();
+    const { avatar, ensureUsername, ensurePlayerId } = usePlayerStore.getState();
     const effectiveUsername = ensureUsername();
+    const playerId = ensurePlayerId();
 
     if (roomParam) {
       showNotification(`Joining room ${roomParam}...`);
       try {
         const res = await joinMultiplayerRoom(roomParam, {
+          id: playerId,
           username: effectiveUsername,
           avatar,
         });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sliders,
   Clock,
@@ -11,6 +11,11 @@ import {
   ArrowRight,
   RefreshCw,
   Globe,
+  Gamepad2,
+  EyeOff,
+  HelpCircle,
+  Type,
+  Layers,
 } from 'lucide-react';
 import {
   Dialog,
@@ -26,8 +31,16 @@ import {
   ROUND_OPTIONS,
   DRAW_TIME_OPTIONS,
   MAX_PLAYERS_OPTIONS,
+  GAME_MODE_OPTIONS,
+  WORD_COUNT_OPTIONS,
+  HINTS_OPTIONS,
+  SUPPORTED_LANGUAGES,
+  getLanguageMeta,
   type RoomSettings,
   type RoomInfo,
+  type GameMode,
+  type WordCountOption,
+  type HintsOption,
 } from '../types/room';
 import { createMultiplayerRoom } from '../lib/socket';
 
@@ -42,25 +55,49 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   onClose,
   onEnterLobby,
 }) => {
-  const { language, username, avatar } = usePlayerStore();
+  const { language, setLanguage, username, avatar } = usePlayerStore();
   const { createRoom } = useRoomStore();
 
   // Settings State
   const [rounds, setRounds] = useState<number>(3);
   const [drawTime, setDrawTime] = useState<number>(80);
   const [maxPlayers, setMaxPlayers] = useState<number>(8);
+  const [gameMode, setGameMode] = useState<GameMode>('normal');
+  const [wordCount, setWordCount] = useState<WordCountOption>(3);
+  const [hints, setHints] = useState<HintsOption>(2);
+  const [roomLanguage, setRoomLanguage] = useState<string>(language || 'en');
   const [customWordsInput, setCustomWordsInput] = useState<string>('');
   const [onlyCustomWords, setOnlyCustomWords] = useState<boolean>(false);
+
+  // Sync roomLanguage whenever store language updates (e.g. from CountrySelect)
+  useEffect(() => {
+    if (language) {
+      setRoomLanguage(language);
+    }
+  }, [language]);
 
   // Created Room State (Step 2)
   const [createdRoom, setCreatedRoom] = useState<RoomInfo | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
 
-  // Parse comma-separated custom words
-  const parsedWords = customWordsInput
-    .split(',')
-    .map((w) => w.trim())
-    .filter((w) => w.length > 0);
+  // Parse, deduplicate, and validate custom words (comma & newline, max 100 words, max 32 chars, max 20k chars)
+  const parsedWords = (() => {
+    const clamped = customWordsInput.slice(0, 20000);
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const raw of clamped.split(/[\n,\r]+/)) {
+      const trimmed = raw.trim().replace(/\s+/g, ' ');
+      if (trimmed.length >= 1 && trimmed.length <= 32) {
+        const lower = trimmed.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          unique.push(trimmed);
+          if (unique.length >= 100) break;
+        }
+      }
+    }
+    return unique;
+  })();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -73,14 +110,19 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
       rounds,
       drawTime,
       maxPlayers,
-      language,
+      language: roomLanguage,
       customWords: parsedWords,
       onlyCustomWords,
+      gameMode,
+      wordCount,
+      hints,
     };
 
     const effectiveUsername = username.trim() || usePlayerStore.getState().ensureUsername();
+    const playerId = usePlayerStore.getState().ensurePlayerId();
 
     const hostData = {
+      id: playerId,
       username: effectiveUsername,
       avatar,
     };
@@ -182,13 +224,13 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
                   <span>Draw Time (Seconds)</span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="flex flex-wrap gap-2">
                   {DRAW_TIME_OPTIONS.map((t) => (
                     <button
                       key={t.value}
                       type="button"
                       onClick={() => setDrawTime(t.value)}
-                      className={`py-2 px-2.5 rounded-xl text-xs font-medium text-center transition-all cursor-pointer ${
+                      className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         drawTime === t.value
                           ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20 ring-2 ring-amber-400/60'
                           : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
@@ -200,7 +242,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 </div>
               </div>
 
-              {/* 3. Max Players Selection */}
+              {/* 3. Max Players Selection (Buttons from 2 to 20) */}
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
                   <Users className="w-3.5 h-3.5 text-emerald-400" />
@@ -212,25 +254,190 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                       key={p}
                       type="button"
                       onClick={() => setMaxPlayers(p)}
-                      className={`h-9 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         maxPlayers === p
                           ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-400/50'
                           : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
                       }`}
                     >
-                      {p} Players {p === 8 && <span className="text-[10px] font-normal opacity-80">(Standard)</span>}
+                      {p} {p === 8 && <span className="text-[10px] font-normal opacity-80">(Standard)</span>}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* 4. Word Language / Country Dictionary */}
+              {/* 4. Game Mode Selection */}
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  <Globe className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Word Dictionary Language</span>
-                </label>
-                <CountrySelect />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300">
+                    <Gamepad2 className="w-3.5 h-3.5 text-fuchsia-400" />
+                    <span>Game Mode</span>
+                  </label>
+                  <span className="text-xs text-fuchsia-400 font-bold bg-fuchsia-500/10 px-2.5 py-0.5 rounded-full border border-fuchsia-500/20 capitalize">
+                    {gameMode} Mode
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {GAME_MODE_OPTIONS.map((m) => (
+                    <button
+                      key={m.value}
+                      type="button"
+                      onClick={() => setGameMode(m.value)}
+                      className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex flex-col gap-1 ${
+                        gameMode === m.value
+                          ? 'bg-fuchsia-600/15 border-fuchsia-500 ring-2 ring-fuchsia-500/40 shadow-md'
+                          : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/60 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                          {m.value === 'normal' && <Sparkles className="w-3.5 h-3.5 text-indigo-400" />}
+                          {m.value === 'hidden' && <EyeOff className="w-3.5 h-3.5 text-amber-400" />}
+                          {m.value === 'combination' && <Layers className="w-3.5 h-3.5 text-emerald-400" />}
+                          {m.label}
+                        </span>
+                        {gameMode === m.value && (
+                          <span className="w-2 h-2 rounded-full bg-fuchsia-400 animate-pulse" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-tight">
+                        {m.desc}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 5. Word Count Selection (Drawer Choices) */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300">
+                    <Type className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Word Count (Drawer Choices)</span>
+                  </label>
+                  <span className="text-xs text-cyan-400 font-bold bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
+                    {wordCount === 1 ? '1 Choice (Instant Draw)' : `${wordCount} Choices`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {WORD_COUNT_OPTIONS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setWordCount(c)}
+                      className={`h-9 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        wordCount === c
+                          ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30 ring-2 ring-cyan-400/50'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
+                      }`}
+                    >
+                      {c} {c === 3 && <span className="text-[10px] font-normal opacity-80">(Default)</span>}
+                      {c === 1 && <span className="text-[10px] font-normal opacity-80">(Instant)</span>}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1.5">
+                  {wordCount === 1
+                    ? '⚡ Turn starts drawing immediately with 1 word choice (no picker dialog).'
+                    : `Drawer receives ${wordCount} word choices to pick from each turn.`}
+                </p>
+              </div>
+
+              {/* 6. Letter Hints Selection */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300">
+                    <HelpCircle className="w-3.5 h-3.5 text-violet-400" />
+                    <span>Hints</span>
+                  </label>
+                  <span className="text-xs text-violet-400 font-bold bg-violet-500/10 px-2.5 py-0.5 rounded-full border border-violet-500/20">
+                    {gameMode === 'hidden'
+                      ? 'Disabled in Hidden Mode'
+                      : hints === 0
+                      ? 'No Hints'
+                      : `${hints} Letters Max`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {HINTS_OPTIONS.map((h) => {
+                    const isDisabled = gameMode === 'hidden';
+                    return (
+                      <button
+                        key={h}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => setHints(h)}
+                        className={`h-9 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          isDisabled
+                            ? 'opacity-40 cursor-not-allowed bg-slate-800/40 text-slate-500 border border-slate-800'
+                            : hints === h
+                            ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30 ring-2 ring-violet-400/50'
+                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
+                        }`}
+                      >
+                        {h} {h === 2 && !isDisabled && <span className="text-[10px] font-normal opacity-80">(Default)</span>}
+                        {h === 0 && <span className="text-[10px] font-normal opacity-80">(None)</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1.5">
+                  {gameMode === 'hidden'
+                    ? '🔒 Letter hints are disabled in Hidden Mode. Guessers must deduce solely from drawing.'
+                    : hints === 0
+                    ? 'No letter hints will be revealed to guessers.'
+                    : `Progressively reveals up to ${hints} letter${hints > 1 ? 's' : ''} during the turn timer.`}
+                </p>
+              </div>
+
+              {/* 4. Word Language / Dictionary */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300">
+                    <Globe className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Game Language</span>
+                  </label>
+                  <span className="text-[11px] font-semibold text-sky-300 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full">
+                    {getLanguageMeta(roomLanguage).flag} {getLanguageMeta(roomLanguage).name}
+                  </span>
+                </div>
+
+                {/* Primary Skribbl Language Buttons (All 10 Supported Languages) */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                  {SUPPORTED_LANGUAGES.map((lang) => {
+                    const isSelected = getLanguageMeta(roomLanguage).code === lang.code;
+                    return (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => {
+                          setRoomLanguage(lang.code);
+                          setLanguage(lang.code);
+                        }}
+                        className={`py-2 px-1.5 rounded-xl text-xs font-semibold flex flex-col items-center justify-center gap-0.5 border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-sky-600 text-white border-sky-400 shadow-md shadow-sky-600/25 ring-1 ring-sky-300'
+                            : 'bg-slate-800/80 text-slate-300 border-slate-700/60 hover:border-slate-600 hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className="text-lg leading-none">{lang.flag}</span>
+                        <span className="truncate text-[11px] font-bold">{lang.name}</span>
+                        <span
+                          className={`text-[10px] truncate ${
+                            isSelected ? 'text-sky-100 font-medium' : 'text-slate-400'
+                          }`}
+                        >
+                          {lang.nativeName}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Optional full country selector */}
+                <div className="pt-1">
+                  <CountrySelect />
+                </div>
               </div>
 
               {/* 5. Custom Words Input (Skribbl style) */}
@@ -238,35 +445,96 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
                     <FileText className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Custom Words (Optional)</span>
+                    <span>Custom Words</span>
                   </label>
-                  {parsedWords.length > 0 && (
+                  {parsedWords.length > 0 ? (
                     <span className="text-[11px] font-semibold text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
                       {parsedWords.length} words added
                     </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-500">Optional</span>
                   )}
                 </div>
 
                 <textarea
                   value={customWordsInput}
                   onChange={(e) => setCustomWordsInput(e.target.value)}
-                  placeholder="e.g. coffee, standup, sprint, react, deployment, remote..."
+                  maxLength={20000}
+                  placeholder="Enter custom words separated by commas or new lines (min. 10 words, max. 100 words, 1-32 chars each)..."
                   rows={2}
                   className="w-full p-3 bg-slate-900/90 text-sm text-slate-100 placeholder-slate-500 rounded-xl border border-slate-700/80 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-mono"
                 />
+                {parsedWords.length > 0 && parsedWords.length < 10 && (
+                  <p className="text-[11px] text-amber-400 font-medium">
+                    ⚠️ At least 10 custom words recommended ({parsedWords.length}/10 entered).
+                  </p>
+                )}
 
-                <label className="flex items-center gap-2.5 cursor-pointer select-none text-xs text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={onlyCustomWords}
-                    onChange={(e) => setOnlyCustomWords(e.target.checked)}
-                    disabled={parsedWords.length === 0}
-                    className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer disabled:opacity-40"
-                  />
-                  <span className={parsedWords.length === 0 ? 'text-slate-500' : 'text-slate-300'}>
-                    Only use custom words (disables standard dictionary)
-                  </span>
-                </label>
+                {/* Mix vs Only Custom Words Mode */}
+                <div className="space-y-2 pt-1 border-t border-slate-800/60">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Custom Words Mode
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={parsedWords.length === 0}
+                      onClick={() => setOnlyCustomWords(false)}
+                      className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                        parsedWords.length === 0
+                          ? 'opacity-40 cursor-not-allowed bg-slate-900/50 border-slate-800'
+                          : !onlyCustomWords
+                          ? 'bg-indigo-600/20 border-indigo-500/80 text-white shadow-sm'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 cursor-pointer'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                          <Sparkles className="w-3 h-3 text-indigo-400" />
+                          Mix Custom Words
+                        </span>
+                        {!onlyCustomWords && parsedWords.length > 0 && (
+                          <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-slate-400 mt-1">
+                        Combine custom words with the standard {getLanguageMeta(roomLanguage).name} dictionary.
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={parsedWords.length === 0}
+                      onClick={() => setOnlyCustomWords(true)}
+                      className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                        parsedWords.length === 0
+                          ? 'opacity-40 cursor-not-allowed bg-slate-900/50 border-slate-800'
+                          : onlyCustomWords
+                          ? 'bg-indigo-600/20 border-indigo-500/80 text-white shadow-sm'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 cursor-pointer'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                          <Layers className="w-3 h-3 text-indigo-400" />
+                          Only Custom Words
+                        </span>
+                        {onlyCustomWords && (
+                          <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-slate-400 mt-1">
+                        Use exclusively host custom words (disables standard dictionary).
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {parsedWords.length > 0 && gameMode === 'combination' && (
+                  <p className="text-[11px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 p-2 rounded-xl">
+                    💡 In Combination Mode, dual prompts will be created from your custom words (e.g. {parsedWords[0] || 'WORD1'} + {parsedWords[1] || 'WORD2'}).
+                  </p>
+                )}
               </div>
 
               {/* Submit Button */}
@@ -343,7 +611,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
             </div>
 
             {/* Settings Quick Recap */}
-            <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
               <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-800">
                 <div className="text-slate-400 text-[10px]">Rounds</div>
                 <div className="font-bold text-slate-200 mt-0.5">{createdRoom.settings.rounds}</div>
@@ -355,6 +623,36 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
               <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-800">
                 <div className="text-slate-400 text-[10px]">Max Players</div>
                 <div className="font-bold text-slate-200 mt-0.5">{createdRoom.settings.maxPlayers}</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-800">
+                <div className="text-slate-400 text-[10px]">Language</div>
+                <div className="font-bold text-sky-300 mt-0.5 truncate">
+                  {getLanguageMeta(createdRoom.settings.language).flag} {getLanguageMeta(createdRoom.settings.language).name}
+                </div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-800">
+                <div className="text-slate-400 text-[10px]">Game Mode</div>
+                <div className="font-bold text-fuchsia-300 mt-0.5 capitalize">{createdRoom.settings.gameMode || 'normal'}</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-800">
+                <div className="text-slate-400 text-[10px]">Word Choices</div>
+                <div className="font-bold text-cyan-300 mt-0.5">{createdRoom.settings.wordCount || 3}</div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-800">
+                <div className="text-slate-400 text-[10px]">Hints</div>
+                <div className="font-bold text-violet-300 mt-0.5">
+                  {createdRoom.settings.gameMode === 'hidden' ? 'None (Hidden)' : `${createdRoom.settings.hints ?? 2} max`}
+                </div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-800">
+                <div className="text-slate-400 text-[10px]">Custom Words</div>
+                <div className="font-bold text-indigo-300 mt-0.5 truncate">
+                  {createdRoom.settings.customWords && createdRoom.settings.customWords.length > 0
+                    ? createdRoom.settings.onlyCustomWords
+                      ? `Only (${createdRoom.settings.customWords.length})`
+                      : `Mix (${createdRoom.settings.customWords.length})`
+                    : 'None'}
+                </div>
               </div>
             </div>
 

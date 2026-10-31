@@ -46,6 +46,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
   const [currentWord, setCurrentWord] = useState('');
   const [drawerSecretWord, setDrawerSecretWord] = useState<string>('');
   const [revealedIndices, setRevealedIndices] = useState<number[]>([]);
+  const [isHiddenWord, setIsHiddenWord] = useState(false);
   const [turnEndInfo, setTurnEndInfo] = useState<{ word: string; reason: string } | null>(null);
 
   // Game completion state
@@ -54,9 +55,27 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
 
   // Timer & Round state
   const turnDuration = currentRoom?.settings.drawTime || 80;
-  const [timeLeft, setTimeLeft] = useState(turnDuration);
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    const storeState = useRoomStore.getState();
+    const storedTime = storeState.timeLeft ?? currentRoom?.timeLeft;
+    if (typeof storedTime === 'number' && storedTime > 0) {
+      if (storeState.lastTimerTickAt) {
+        const elapsedSec = Math.floor((Date.now() - storeState.lastTimerTickAt) / 1000);
+        return Math.max(1, storedTime - elapsedSec);
+      }
+      return storedTime;
+    }
+    return turnDuration;
+  });
   const [currentRound, setCurrentRound] = useState(1);
   const [totalRounds, setTotalRounds] = useState(currentRoom?.settings.rounds || 3);
+
+  // Sync timeLeft whenever currentRoom.timeLeft updates from server
+  useEffect(() => {
+    if (typeof currentRoom?.timeLeft === 'number' && currentRoom.timeLeft > 0) {
+      setTimeLeft(currentRoom.timeLeft);
+    }
+  }, [currentRoom?.timeLeft]);
 
   // Drawing tools state
   const [activeColor, setActiveColor] = useState('#000000');
@@ -137,7 +156,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
 
       if (data.currentRound) setCurrentRound(data.currentRound);
       if (data.totalRounds) setTotalRounds(data.totalRounds);
-      if (data.timeLeft !== undefined) setTimeLeft(data.timeLeft);
+      if (data.timeLeft !== undefined) {
+        setTimeLeft(data.timeLeft);
+        useRoomStore.getState().setTimeLeft(data.timeLeft);
+      }
 
       if (data.status === 'game_end') {
         setIsGameOverModalOpen(true);
@@ -155,10 +177,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       setActiveWordChoices(formatted);
       setRole('drawer');
       setIsWordModalOpen(true);
-      setTimeLeft(duration || 15);
+      const chosenDuration = duration || 15;
+      setTimeLeft(chosenDuration);
+      useRoomStore.getState().setTimeLeft(chosenDuration);
       setStrokes([]);
       setRevealedIndices([]);
       setCurrentWord('');
+      setIsHiddenWord(false);
     };
 
     // 3. Secret Word received by Drawer
@@ -170,13 +195,32 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       setIsWordModalOpen(false);
       setStrokes([]);
       setRevealedIndices([]);
+      setIsHiddenWord(false);
     };
 
-    // 4. Word Hint received by Guessers (Word length & revealed letters)
-    const handleWordHint = ({ length, revealedIndices: rIdxs }: { length: number; revealedIndices: number[] }) => {
+    // 4. Word Hint received by Guessers (Word length, mask & revealed letters)
+    const handleWordHint = ({
+      length,
+      revealedIndices: rIdxs,
+      maskedWord,
+      hidden,
+    }: {
+      length: number;
+      revealedIndices: number[];
+      maskedWord?: string;
+      hidden?: boolean;
+    }) => {
       // If local player is the drawer, NEVER overwrite secret word with blanks!
       if (role === 'drawer' || drawerSecretWord) return;
-      setCurrentWord('_'.repeat(length));
+
+      if (hidden) {
+        setIsHiddenWord(true);
+        setCurrentWord('');
+      } else {
+        setIsHiddenWord(false);
+        setCurrentWord(maskedWord || '_'.repeat(length));
+      }
+
       setRevealedIndices(rIdxs || []);
       setIsWordModalOpen(false);
     };
@@ -184,6 +228,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
     // 5. Timer Tick sync from server clock
     const handleTimerTick = ({ timeLeft: t }: { timeLeft: number }) => {
       setTimeLeft(t);
+      useRoomStore.getState().setTimeLeft(t);
     };
 
     // 6. Incoming Drawing Stroke from Drawer
@@ -230,6 +275,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
     const handleTurnEnded = ({ word, reason, players: updatedPlayers }: { word: string; reason: string; players: any[] }) => {
       setTurnEndInfo({ word, reason });
       setDrawerSecretWord('');
+      setIsHiddenWord(false);
       if (updatedPlayers && Array.isArray(updatedPlayers)) {
         setPlayers(
           updatedPlayers.map((p: any) => ({
@@ -390,12 +436,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
         drawerName={role === 'drawer' ? (username || 'You') : drawerName}
         roomId={currentRoom?.id}
         onLeaveGame={onLeaveGame}
+        gameMode={currentRoom?.settings.gameMode || 'normal'}
+        hidden={role !== 'drawer' && (isHiddenWord || currentRoom?.settings.gameMode === 'hidden')}
       />
 
       {/* 2A. Mobile & Tablet Layout (< lg): Skribbl-Style Viewport Arena (Simultaneous Drawing & Typing) */}
       <div className="flex lg:hidden flex-col gap-2">
         {/* Canvas: Prominent, non-scrolling fit for mobile viewports */}
-        <div className="w-full h-[190px] xs:h-[210px] sm:h-[280px] relative rounded-2xl overflow-hidden shadow-2xl border border-slate-800 shrink-0">
+        {/* For guesser: Expands height to absorb the space of the hidden toolbar, keeping scores & chat input neatly at the bottom */}
+        <div
+          className={`w-full relative rounded-2xl overflow-hidden shadow-2xl border border-slate-800 shrink-0 transition-all duration-300 ${
+            role === 'drawer'
+              ? 'h-[190px] xs:h-[210px] sm:h-[280px]'
+              : 'h-[320px] xs:h-[340px] sm:h-[410px]'
+          }`}
+        >
           <DrawingCanvas
             isDrawer={role === 'drawer'}
             drawerName={role === 'drawer' ? (username || 'You') : drawerName}
@@ -426,10 +481,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
           </div>
         )}
 
-        {/* Skribbl-Style Split Row on Mobile: Scores (Left) + Live Chat Feed (Right) */}
-        <div className="grid grid-cols-12 gap-1.5 xs:gap-2 h-[150px] xs:h-[165px] sm:h-[190px] w-full shrink-0 min-h-0 overflow-hidden">
-          {/* Left Column: Compact Scoreboard (5 cols) */}
-          <div className="col-span-5 sm:col-span-4 h-full min-h-0 overflow-hidden">
+        {/* Skribbl-Style Split Row on Mobile: 50-50 Width for Scores (Left) + Live Chat Feed (Right) */}
+        <div className="grid grid-cols-2 gap-1.5 xs:gap-2 h-[150px] xs:h-[165px] sm:h-[190px] w-full shrink-0 min-h-0 overflow-hidden">
+          {/* Left Column: Compact Scoreboard (50% width) */}
+          <div className="h-full min-h-0 overflow-hidden">
             <Scoreboard
               players={players}
               currentUserId={localPlayer?.id}
@@ -437,8 +492,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
             />
           </div>
 
-          {/* Right Column: Live Chat Feed with auto-scroll (7 cols) */}
-          <div className="col-span-7 sm:col-span-8 h-full min-h-0 overflow-hidden">
+          {/* Right Column: Live Chat Feed with auto-scroll (50% width) */}
+          <div className="h-full min-h-0 overflow-hidden">
             <GuessChat
               messages={messages}
               onSendMessage={handleSendMessage}

@@ -78,7 +78,7 @@ export const Scoreboard: React.FC<ScoreboardProps> = ({ players, currentUserId, 
                 <div className="min-w-0 flex flex-col">
                   <div className="flex items-center gap-1">
                     <span
-                      className={`${compact ? 'text-[11px] max-w-[55px] xs:max-w-[70px]' : 'text-xs max-w-[100px] sm:max-w-[120px]'} font-bold truncate ${
+                      className={`${compact ? 'text-[11px] max-w-[65px] xs:max-w-[85px] sm:max-w-[110px]' : 'text-xs max-w-[100px] sm:max-w-[120px]'} font-bold truncate ${
                         isCurrentUser ? 'text-indigo-300' : 'text-slate-200'
                       }`}
                     >

@@ -41,8 +41,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
   if (!isOpen) return null;
 
-  const isTwoPlayers = players.length === 2;
   const sortedPlayers = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const topPlayer = sortedPlayers[0];
+  const secondPlayer = sortedPlayers[1];
+  const isTie = sortedPlayers.length > 1 && (topPlayer?.score || 0) === (secondPlayer?.score || 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300">
@@ -72,64 +74,88 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black text-white font-heading tracking-wide">
-            {isTwoPlayers ? '🎉 Both Players Are Winners!' : '🎉 Everyone Is A Winner!'}
+            {isTie
+              ? "🤝 It's a Tie!"
+              : `👑 ${topPlayer?.username || 'Player'} Wins!`}
           </h2>
           <p className="text-xs sm:text-sm text-slate-300">
-            {isTwoPlayers
-              ? 'Awesome game! Both of you played brilliantly.'
-              : 'Outstanding doodle match! Great guessing and sketching by all teammates.'}
+            {isTie
+              ? `Incredible game! Both players tied for 1st place with ${topPlayer?.score || 0} points!`
+              : `Congratulations to ${topPlayer?.username || 'the winner'} for scoring ${topPlayer?.score || 0} points!`}
           </p>
         </div>
 
-        {/* Player Winner Cards */}
+        {/* Player Ranked Cards */}
         <div className="space-y-2 mb-6 max-h-[220px] overflow-y-auto pr-1">
-          {sortedPlayers.map((player, idx) => (
-            <div
-              key={player.id || idx}
-              className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
-                idx === 0
-                  ? 'bg-amber-500/15 border-amber-500/40 shadow-sm'
-                  : 'bg-slate-800/60 border-slate-700/60'
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="relative shrink-0">
-                  <img
-                    src={getAvatarUrl(player.avatar)}
-                    alt={player.username}
-                    className="w-10 h-10 rounded-full border border-slate-700 bg-slate-800 object-cover"
-                  />
-                  {idx === 0 && (
-                    <span className="absolute -top-1 -right-1 p-0.5 bg-amber-400 rounded-full text-slate-950 shadow-sm">
-                      <Crown className="w-3 h-3" />
-                    </span>
-                  )}
-                </div>
+          {sortedPlayers.map((player, idx) => {
+            const isFirst = idx === 0 || (isTie && (player.score || 0) === (topPlayer?.score || 0));
+            const isSecond = !isTie && idx === 1;
+            const isThird = !isTie && idx === 2;
 
-                <div className="text-left truncate">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-bold text-white truncate font-heading">
-                      {player.username}
-                    </span>
-                    <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                      Winner
+            return (
+              <div
+                key={player.id || idx}
+                className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
+                  isFirst
+                    ? 'bg-amber-500/15 border-amber-500/40 shadow-sm shadow-amber-500/10'
+                    : 'bg-slate-800/60 border-slate-700/60'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative shrink-0">
+                    <img
+                      src={getAvatarUrl(player.avatar)}
+                      alt={player.username}
+                      className={`w-10 h-10 rounded-full border bg-slate-800 object-cover ${
+                        isFirst ? 'border-amber-400' : 'border-slate-700'
+                      }`}
+                    />
+                    {isFirst && (
+                      <span className="absolute -top-1 -right-1 p-0.5 bg-amber-400 rounded-full text-slate-950 shadow-sm">
+                        <Crown className="w-3 h-3" />
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-left truncate">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold text-white truncate font-heading">
+                        {player.username}
+                      </span>
+                      {isFirst ? (
+                        <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/40">
+                          {isTie ? 'Tied 1st' : '👑 1st Place'}
+                        </span>
+                      ) : isSecond ? (
+                        <span className="text-[10px] font-semibold text-slate-300 bg-slate-700/60 px-1.5 py-0.5 rounded border border-slate-600">
+                          🥈 2nd Place
+                        </span>
+                      ) : isThird ? (
+                        <span className="text-[10px] font-semibold text-amber-500 bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-800/60">
+                          🥉 3rd Place
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
+                          #{idx + 1}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-400">
+                      {isFirst ? (isTie ? 'Co-Champion' : 'Match Winner') : isSecond ? 'Runner Up' : `Rank #${idx + 1}`}
                     </span>
                   </div>
-                  <span className="text-[11px] text-slate-400">
-                    {idx === 0 ? 'Top Performer' : 'Champion Player'}
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0 pl-2">
+                  <Medal className={`w-4 h-4 ${isFirst ? 'text-amber-400' : 'text-slate-400'}`} />
+                  <span className={`text-base font-black font-mono ${isFirst ? 'text-amber-300' : 'text-slate-200'}`}>
+                    {player.score ?? 0}
                   </span>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">pts</span>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1.5 shrink-0 pl-2">
-                <Medal className="w-4 h-4 text-amber-400" />
-                <span className="text-base font-black text-amber-300 font-mono">
-                  {player.score ?? 0}
-                </span>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold">pts</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Action Button & Countdown Notice */}

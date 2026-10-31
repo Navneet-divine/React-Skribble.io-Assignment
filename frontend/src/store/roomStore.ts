@@ -8,6 +8,9 @@ interface RoomState {
   isHost: boolean;
   gameStatus: 'lobby' | 'playing';
   players: LobbyPlayer[];
+  timeLeft?: number;
+  lastTimerTickAt?: number;
+  setTimeLeft: (timeLeft: number) => void;
   createRoom: (settings: RoomSettings, hostPlayer?: { username: string; avatar: AvatarConfig }) => RoomInfo;
   joinRoom: (roomId: string, player: { username: string; avatar: AvatarConfig }, isHost?: boolean) => void;
   kickPlayer: (playerId: string) => void;
@@ -35,6 +38,20 @@ const MOCK_TEAMMATES = [
   { name: 'Leo (QA)', seed: 'Leo', style: 'fun-emoji' as const },
   { name: 'Maya (Marketing)', seed: 'Maya', style: 'lorelei' as const },
   { name: 'Marcus (DevOps)', seed: 'Marcus', style: 'bottts-neutral' as const },
+  { name: 'Chloe (HR)', seed: 'Chloe', style: 'adventurer' as const },
+  { name: 'Liam (Frontend)', seed: 'Liam', style: 'fun-emoji' as const },
+  { name: 'Zoe (Data)', seed: 'Zoe', style: 'lorelei' as const },
+  { name: 'Noah (Security)', seed: 'Noah', style: 'bottts-neutral' as const },
+  { name: 'Ava (Sales)', seed: 'Ava', style: 'adventurer' as const },
+  { name: 'Ethan (Mobile)', seed: 'Ethan', style: 'fun-emoji' as const },
+  { name: 'Mia (Backend)', seed: 'Mia', style: 'lorelei' as const },
+  { name: 'Lucas (AI)', seed: 'Lucas', style: 'bottts-neutral' as const },
+  { name: 'Harper (Content)', seed: 'Harper', style: 'adventurer' as const },
+  { name: 'Oliver (Support)', seed: 'Oliver', style: 'fun-emoji' as const },
+  { name: 'Aria (Finance)', seed: 'Aria', style: 'lorelei' as const },
+  { name: 'Elijah (Cloud)', seed: 'Elijah', style: 'bottts-neutral' as const },
+  { name: 'Ella (Legal)', seed: 'Ella', style: 'adventurer' as const },
+  { name: 'James (Growth)', seed: 'James', style: 'fun-emoji' as const },
 ];
 
 export const useRoomStore = create<RoomState>()(
@@ -44,6 +61,16 @@ export const useRoomStore = create<RoomState>()(
       isHost: false,
       gameStatus: 'lobby',
       players: [],
+      timeLeft: undefined,
+      lastTimerTickAt: undefined,
+
+      setTimeLeft: (timeLeft: number) => {
+        set((state) => ({
+          timeLeft,
+          lastTimerTickAt: Date.now(),
+          currentRoom: state.currentRoom ? { ...state.currentRoom, timeLeft } : null,
+        }));
+      },
 
   createRoom: (settings: RoomSettings, hostPlayer) => {
     const roomId = generateRoomCode();
@@ -98,6 +125,9 @@ export const useRoomStore = create<RoomState>()(
         language: 'us',
         customWords: [],
         onlyCustomWords: false,
+        gameMode: 'normal',
+        wordCount: 3,
+        hints: 2,
       },
       createdAt: Date.now(),
     };
@@ -195,10 +225,13 @@ export const useRoomStore = create<RoomState>()(
         ? mappedPlayers.some((p) => p.username === localUsername && p.isHost)
         : get().isHost;
 
+      const liveTimeLeft = typeof data.timeLeft === 'number' ? data.timeLeft : get().timeLeft;
+
       const roomInfo: RoomInfo = {
         id: data.id,
         inviteLink,
         isHost: isUserHost,
+        timeLeft: liveTimeLeft,
         settings: data.settings || {
           rounds: 3,
           drawTime: 80,
@@ -206,6 +239,9 @@ export const useRoomStore = create<RoomState>()(
           language: 'us',
           customWords: [],
           onlyCustomWords: false,
+          gameMode: 'normal',
+          wordCount: 3,
+          hints: 2,
         },
         createdAt: Date.now(),
       };
@@ -217,6 +253,8 @@ export const useRoomStore = create<RoomState>()(
         players: mappedPlayers,
         isHost: isUserHost,
         gameStatus: isPlaying ? 'playing' : get().gameStatus,
+        timeLeft: liveTimeLeft,
+        lastTimerTickAt: typeof data.timeLeft === 'number' ? Date.now() : get().lastTimerTickAt,
       });
     },
 
@@ -226,6 +264,8 @@ export const useRoomStore = create<RoomState>()(
         isHost: false,
         gameStatus: 'lobby',
         players: [],
+        timeLeft: undefined,
+        lastTimerTickAt: undefined,
       });
     },
   }),
