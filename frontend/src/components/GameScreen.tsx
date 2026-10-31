@@ -594,6 +594,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
           <DrawingCanvas
             isDrawer={role === 'drawer'}
             drawerName={role === 'drawer' ? (username || 'You') : drawerName}
+            isChoosingWord={!currentWord || isWordModalOpen}
             activeColor={activeColor}
             activeSize={activeSize}
             activeTool={activeTool}
@@ -677,6 +678,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
             <DrawingCanvas
               isDrawer={role === 'drawer'}
               drawerName={role === 'drawer' ? (username || 'You') : drawerName}
+              isChoosingWord={!currentWord || isWordModalOpen}
               activeColor={activeColor}
               activeSize={activeSize}
               activeTool={activeTool}

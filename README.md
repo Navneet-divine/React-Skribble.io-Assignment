@@ -329,8 +329,9 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 - **📱 Pixel-Perfect Mobile Toolbar & Settings Alignment**
   - **Drawing Toolbar Containment**: Top row (`Tools`, `Stroke Sizes`, `Undo`, and `Clear`) compacts dynamically on small viewports down to 320px with square icon buttons, preventing the Clear/Delete icon from overflowing past screen borders.
   - **Single-Row Settings Alignment**: Settings badges (`3 Choices`, `Normal Mode`, `2 Letters Max`) enforce `whitespace-nowrap`, while Word Choices (1–5) and Hints (0–5) use dedicated CSS grids keeping all options aligned in single neat horizontal rows.
-- **🎨 Canvas Active Tool Watermark Synchronization**
+- **🎨 Canvas Active Tool & Watermark Synchronization**
   - In-canvas active tool indicator badge dynamically synchronizes 1:1 with the selected toolbar tool (`Paintbrush` for Brush, `PaintBucket` for Fill Bucket, and `Eraser` for Eraser).
+  - **Contextual Guesser Watermark ("Choosing Word" vs. "Watching Draw")**: Canvas watermark dynamically displays *"✨ [Drawer] is choosing a word..."* during the 15-second choosing countdown, seamlessly transitioning to *"👁️ Watching [Drawer] draw"* as soon as the word is selected and sketching begins.
 
 ---
 

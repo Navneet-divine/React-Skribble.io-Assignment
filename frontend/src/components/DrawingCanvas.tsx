@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { type DrawingStroke, type DrawingTool, type StrokeSize, type NormalizedPoint } from '../types/game';
-import { Paintbrush, Eraser, Eye, PaintBucket } from 'lucide-react';
+import { Paintbrush, Eraser, Eye, PaintBucket, Sparkles } from 'lucide-react';
 
 function hexToRgba(hex: string): [number, number, number, number] {
   let c = hex.replace('#', '');
@@ -249,6 +249,7 @@ function drawVectorStroke(
 interface DrawingCanvasProps {
   isDrawer: boolean;
   drawerName?: string;
+  isChoosingWord?: boolean;
   activeColor: string;
   activeSize: StrokeSize;
   activeTool: DrawingTool;
@@ -260,6 +261,7 @@ interface DrawingCanvasProps {
 export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   isDrawer,
   drawerName = 'Drawer',
+  isChoosingWord = false,
   activeColor,
   activeSize,
   activeTool,
@@ -581,10 +583,21 @@ function getBucketCursorPng(color: string): string {
       {/* Guesser Read-Only Watermark Banner */}
       {!isDrawer && (
         <div className="pointer-events-none absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-slate-200 border border-slate-700/80 px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-2 text-xs font-semibold">
-          <Eye className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-          <span>
-            Watching <strong className="text-white">{drawerName}</strong> draw
-          </span>
+          {isChoosingWord ? (
+            <>
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span>
+                <strong className="text-white">{drawerName}</strong> is choosing a word...
+              </span>
+            </>
+          ) : (
+            <>
+              <Eye className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+              <span>
+                Watching <strong className="text-white">{drawerName}</strong> draw
+              </span>
+            </>
+          )}
         </div>
       )}
 

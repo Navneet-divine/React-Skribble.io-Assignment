@@ -147,7 +147,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
       return (
         <div className="flex items-center gap-2 text-slate-400 text-sm font-medium">
           <Sparkles className="w-4 h-4 text-indigo-400 animate-spin" />
-          <span>Choosing a word...</span>
+          <span>{drawerName ? `${drawerName} is choosing a word...` : 'Choosing a word...'}</span>
         </div>
       );
     }
