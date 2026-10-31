@@ -404,7 +404,10 @@ export function registerSocketHandlers(io: Server) {
         }
         return;
       }
-      const normalizedRoomId = roomId.trim().toUpperCase().slice(0, 10);
+      let normalizedRoomId = roomId.trim().toUpperCase().slice(0, 32);
+      if (!normalizedRoomId.startsWith('DOODLE-') && normalizedRoomId.length === 4) {
+        normalizedRoomId = `DOODLE-${normalizedRoomId}`;
+      }
       const room = rooms.get(normalizedRoomId);
 
       if (!room) {

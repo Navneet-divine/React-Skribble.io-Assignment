@@ -273,7 +273,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                     <Gamepad2 className="w-3.5 h-3.5 text-fuchsia-400" />
                     <span>Game Mode</span>
                   </label>
-                  <span className="text-xs text-fuchsia-400 font-bold bg-fuchsia-500/10 px-2.5 py-0.5 rounded-full border border-fuchsia-500/20 capitalize">
+                  <span className="text-xs text-fuchsia-400 font-bold bg-fuchsia-500/10 px-2.5 py-0.5 rounded-full border border-fuchsia-500/20 capitalize whitespace-nowrap shrink-0">
                     {gameMode} Mode
                   </span>
                 </div>
@@ -310,29 +310,30 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
               {/* 5. Word Count Selection (Drawer Choices) */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300">
-                    <Type className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Word Count (Drawer Choices)</span>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300 min-w-0">
+                    <Type className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <span className="truncate">Word Choices</span>
                   </label>
-                  <span className="text-xs text-cyan-400 font-bold bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
-                    {wordCount === 1 ? '1 Choice (Instant Draw)' : `${wordCount} Choices`}
+                  <span className="text-xs text-cyan-400 font-bold bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20 whitespace-nowrap shrink-0">
+                    {wordCount === 1 ? '1 Choice (Instant)' : `${wordCount} Choices`}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                   {WORD_COUNT_OPTIONS.map((c) => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => setWordCount(c)}
-                      className={`h-9 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      className={`h-9 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center leading-none ${
                         wordCount === c
                           ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30 ring-2 ring-cyan-400/50'
                           : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
                       }`}
                     >
-                      {c} {c === 3 && <span className="text-[10px] font-normal opacity-80">(Default)</span>}
-                      {c === 1 && <span className="text-[10px] font-normal opacity-80">(Instant)</span>}
+                      <span>{c}</span>
+                      {c === 3 && <span className="text-[9px] font-normal opacity-80 mt-0.5">Default</span>}
+                      {c === 1 && <span className="text-[9px] font-normal opacity-80 mt-0.5">Instant</span>}
                     </button>
                   ))}
                 </div>
@@ -345,20 +346,20 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
               {/* 6. Letter Hints Selection */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300">
-                    <HelpCircle className="w-3.5 h-3.5 text-violet-400" />
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300 min-w-0">
+                    <HelpCircle className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                     <span>Hints</span>
                   </label>
-                  <span className="text-xs text-violet-400 font-bold bg-violet-500/10 px-2.5 py-0.5 rounded-full border border-violet-500/20">
+                  <span className="text-xs text-violet-400 font-bold bg-violet-500/10 px-2.5 py-0.5 rounded-full border border-violet-500/20 whitespace-nowrap shrink-0">
                     {gameMode === 'hidden'
-                      ? 'Disabled in Hidden Mode'
+                      ? 'Disabled in Hidden'
                       : hints === 0
                       ? 'No Hints'
                       : `${hints} Letters Max`}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-6 gap-1 sm:gap-2">
                   {HINTS_OPTIONS.map((h) => {
                     const isDisabled = gameMode === 'hidden';
                     return (
@@ -367,7 +368,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                         type="button"
                         disabled={isDisabled}
                         onClick={() => setHints(h)}
-                        className={`h-9 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        className={`h-9 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center leading-none ${
                           isDisabled
                             ? 'opacity-40 cursor-not-allowed bg-slate-800/40 text-slate-500 border border-slate-800'
                             : hints === h
@@ -375,8 +376,9 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                             : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
                         }`}
                       >
-                        {h} {h === 2 && !isDisabled && <span className="text-[10px] font-normal opacity-80">(Default)</span>}
-                        {h === 0 && <span className="text-[10px] font-normal opacity-80">(None)</span>}
+                        <span>{h}</span>
+                        {h === 2 && !isDisabled && <span className="text-[9px] font-normal opacity-80 mt-0.5">Default</span>}
+                        {h === 0 && <span className="text-[9px] font-normal opacity-80 mt-0.5">None</span>}
                       </button>
                     );
                   })}

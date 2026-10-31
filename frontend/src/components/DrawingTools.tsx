@@ -48,15 +48,15 @@ export const DrawingTools: React.FC<DrawingToolsProps> = ({
   };
 
   return (
-    <div className="relative w-full bg-slate-900/90 backdrop-blur-md border border-slate-800/90 rounded-2xl shadow-xl p-2.5 sm:p-3 flex flex-col gap-2">
+    <div className="relative w-full bg-slate-900/90 backdrop-blur-md border border-slate-800/90 rounded-2xl shadow-xl p-2 xs:p-2.5 sm:p-3 flex flex-col gap-2">
       {/* TOP ROW (UP): Tools, Stroke Sizes, Undo & Clear */}
-      <div className="w-full flex items-center justify-between gap-2">
+      <div className="w-full flex items-center justify-between gap-1 xs:gap-1.5 sm:gap-2">
         {/* Left: Brush, Fill & Eraser */}
-        <div className="flex items-center gap-1 bg-slate-800/70 p-1 rounded-xl border border-slate-700/60 shrink-0">
+        <div className="flex items-center gap-0.5 xs:gap-1 bg-slate-800/70 p-0.5 xs:p-1 rounded-xl border border-slate-700/60 shrink-0">
           <button
             type="button"
             onClick={() => onSelectTool('brush')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 xs:px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeTool === 'brush'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
@@ -70,7 +70,7 @@ export const DrawingTools: React.FC<DrawingToolsProps> = ({
           <button
             type="button"
             onClick={() => onSelectTool('fill')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 xs:px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeTool === 'fill'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
@@ -84,7 +84,7 @@ export const DrawingTools: React.FC<DrawingToolsProps> = ({
           <button
             type="button"
             onClick={() => onSelectTool('eraser')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 xs:px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeTool === 'eraser'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
@@ -97,7 +97,7 @@ export const DrawingTools: React.FC<DrawingToolsProps> = ({
         </div>
 
         {/* Center: 4 Stroke Sizes */}
-        <div className="flex items-center gap-1 bg-slate-800/70 p-1 rounded-xl border border-slate-700/60 shrink-0">
+        <div className="flex items-center gap-0.5 xs:gap-1 bg-slate-800/70 p-0.5 xs:p-1 rounded-xl border border-slate-700/60 shrink-0">
           {STROKE_SIZES.map(({ size, label, previewPx }) => {
             const isSelected = activeSize === size;
             return (
@@ -105,7 +105,7 @@ export const DrawingTools: React.FC<DrawingToolsProps> = ({
                 key={size}
                 type="button"
                 onClick={() => onSelectSize(size)}
-                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                className={`w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                   isSelected
                     ? 'bg-indigo-600/80 text-white shadow-sm ring-1 ring-indigo-400'
                     : 'text-slate-400 hover:bg-slate-700/50'
@@ -117,8 +117,8 @@ export const DrawingTools: React.FC<DrawingToolsProps> = ({
                     isSelected ? 'scale-110' : ''
                   }`}
                   style={{
-                    width: `${previewPx}px`,
-                    height: `${previewPx}px`,
+                    width: `${Math.max(3, previewPx - 1)}px`,
+                    height: `${Math.max(3, previewPx - 1)}px`,
                     backgroundColor:
                       activeTool === 'eraser'
                         ? '#FFFFFF'
@@ -132,13 +132,13 @@ export const DrawingTools: React.FC<DrawingToolsProps> = ({
           })}
         </div>
 
-        {/* Right: Undo & Clear Buttons */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Right: Undo & Clear Buttons - Compact on mobile so delete icon never overflows */}
+        <div className="flex items-center gap-1 xs:gap-1.5 shrink-0">
           <button
             type="button"
             onClick={onUndo}
             disabled={!canUndo}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+            className={`w-7 h-7 sm:w-auto flex items-center justify-center sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
               canUndo
                 ? 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-slate-200'
                 : 'bg-slate-800/30 border-slate-800 text-slate-600 cursor-not-allowed'
@@ -152,7 +152,7 @@ export const DrawingTools: React.FC<DrawingToolsProps> = ({
           <button
             type="button"
             onClick={() => setShowClearConfirm(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/50 hover:border-rose-600/70 text-rose-300 transition-all cursor-pointer"
+            className="w-7 h-7 sm:w-auto flex items-center justify-center sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/50 hover:border-rose-600/70 text-rose-300 transition-all cursor-pointer"
             title="Clear Canvas"
           >
             <Trash2 className="w-3.5 h-3.5" />
