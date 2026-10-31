@@ -12,9 +12,10 @@ import {
   type StrokeSize,
   type ChatMessage,
   type WordChoice,
+  type AvatarConfig,
 } from '../types/game';
 import { useRoomStore } from '../store/roomStore';
-import { usePlayerStore } from '../store/playerStore';
+import { usePlayerStore, getAvatarUrl } from '../store/playerStore';
 import {
   socket,
   emitDrawingStroke,
@@ -24,7 +25,7 @@ import {
   selectWordOnServer,
   returnToLobby,
 } from '../lib/socket';
-import { Trophy, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { SpoilerWarningModal } from './SpoilerWarningModal';
 import { GameOverModal } from './GameOverModal';
 import { soundManager } from '../lib/soundManager';
@@ -48,7 +49,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
   const [drawerSecretWord, setDrawerSecretWord] = useState<string>('');
   const [revealedIndices, setRevealedIndices] = useState<number[]>([]);
   const [isHiddenWord, setIsHiddenWord] = useState(false);
-  const [turnEndInfo, setTurnEndInfo] = useState<{ word: string; reason: string } | null>(null);
+  const [turnEndInfo, setTurnEndInfo] = useState<{
+    word: string;
+    reason: string;
+    scores?: Array<{ id: string; username: string; avatar?: AvatarConfig; turnScore: number; totalScore: number }>;
+  } | null>(null);
+  const [roundSplashInfo, setRoundSplashInfo] = useState<{
+    round: number;
+    totalRounds: number;
+  } | null>(null);
 
   // Game completion state
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
@@ -272,10 +281,30 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       ]);
     };
 
-    // 10. Turn ended announcement
-    const handleTurnEnded = ({ word, reason, players: updatedPlayers }: { word: string; reason: string; players: any[] }) => {
+    // 10. Turn ended announcement (Skribbl.io end-of-turn results)
+    const handleTurnEnded = ({
+      word,
+      reason,
+      players: updatedPlayers,
+      scores,
+    }: {
+      word: string;
+      reason: string;
+      players: any[];
+      scores?: Array<{ id: string; username: string; avatar?: AvatarConfig; turnScore: number; totalScore: number }>;
+    }) => {
       soundManager.playTurnEnd();
-      setTurnEndInfo({ word, reason });
+      const resolvedScores = scores && scores.length > 0
+        ? scores
+        : (updatedPlayers || []).map((p: any) => ({
+            id: p.id,
+            username: p.username,
+            avatar: p.avatar,
+            turnScore: p.turnScore ?? 0,
+            totalScore: p.score ?? 0,
+          }));
+
+      setTurnEndInfo({ word, reason, scores: resolvedScores });
       setDrawerSecretWord('');
       setIsHiddenWord(false);
       if (updatedPlayers && Array.isArray(updatedPlayers)) {
@@ -285,13 +314,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
             username: p.username,
             avatar: p.avatar,
             score: p.score ?? 0,
+            turnScore: p.turnScore ?? 0,
             hasGuessed: Boolean(p.hasGuessed),
             isDrawing: Boolean(p.isDrawing),
             isHost: Boolean(p.isHost),
           }))
         );
       }
-      setTimeout(() => setTurnEndInfo(null), 3800);
+      setTimeout(() => setTurnEndInfo(null), 4400);
+    };
+
+    // 10B. Round transition announcement (Skribbl.io: "Round 2 of 3")
+    const handleRoundChange = ({ round, totalRounds: total }: { round: number; totalRounds: number }) => {
+      soundManager.playGameStart();
+      setCurrentRound(round);
+      setTotalRounds(total);
+      setRoundSplashInfo({ round, totalRounds: total });
+      setTimeout(() => setRoundSplashInfo(null), 2400);
     };
 
     // 11. Game Ended (Match complete)
@@ -325,6 +364,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
     socket.on('chat:message', handleChatMessage);
     socket.on('chat:warning', handleChatWarning);
     socket.on('turn:ended', handleTurnEnded);
+    socket.on('round:change', handleRoundChange);
     socket.on('game:ended', handleGameEnded);
 
     // Request choices from server in case this client mounted as the active drawer
@@ -343,6 +383,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
       socket.off('chat:message', handleChatMessage);
       socket.off('chat:warning', handleChatWarning);
       socket.off('turn:ended', handleTurnEnded);
+      socket.off('round:change', handleRoundChange);
       socket.off('game:ended', handleGameEnded);
     };
   }, [username]);
@@ -424,6 +465,96 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
     emitChatMessage(trimmed);
   };
 
+  // Skribbl.io In-Canvas Overlay (End-of-Turn Score Summary & Round Transition Banner)
+  const renderCanvasOverlay = () => {
+    if (roundSplashInfo) {
+      return (
+        <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-30 flex flex-col items-center justify-center p-4 text-center select-none animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold mb-2 border border-indigo-500/30">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <span>New Round</span>
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-black text-amber-400 font-heading tracking-wider mb-2 drop-shadow-lg">
+            Round {roundSplashInfo.round}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 font-medium">
+            Round {roundSplashInfo.round} of {roundSplashInfo.totalRounds}
+          </p>
+        </div>
+      );
+    }
+
+    if (turnEndInfo) {
+      const isMultiCol = (turnEndInfo.scores?.length || 0) > 4;
+
+      return (
+        <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-2 sm:p-4 text-center select-none animate-in fade-in duration-200 overflow-hidden">
+          <div className="text-xs sm:text-base text-slate-200 font-medium">
+            The word was{' '}
+            <span className="font-black text-amber-400 text-sm sm:text-xl uppercase tracking-wider underline decoration-amber-400/50">
+              {turnEndInfo.word}
+            </span>
+          </div>
+          <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 mb-2 sm:mb-3 font-medium">
+            {turnEndInfo.reason}
+          </p>
+
+          {/* Players Turn Points List (Skribbl.io Adaptive 8-Player Layout) */}
+          {turnEndInfo.scores && turnEndInfo.scores.length > 0 && (
+            <div
+              className={`w-full ${
+                isMultiCol
+                  ? 'max-w-[330px] xs:max-w-[420px] sm:max-w-[480px] grid grid-cols-2 gap-x-3 sm:gap-x-6 gap-y-1'
+                  : 'max-w-[260px] xs:max-w-[300px] sm:max-w-[340px] flex flex-col gap-1'
+              } max-h-[140px] xs:max-h-[170px] sm:max-h-[280px] overflow-y-auto px-2 py-0.5`}
+            >
+              {turnEndInfo.scores.map((s) => {
+                const isLocal = s.username === username;
+                return (
+                  <div
+                    key={s.id}
+                    className={`flex items-center justify-between gap-1.5 py-0.5 px-2 rounded-lg text-[11px] xs:text-xs sm:text-sm transition-all ${
+                      isLocal
+                        ? 'bg-indigo-950/60 text-indigo-100 font-bold border border-indigo-500/40 shadow-sm'
+                        : 'text-slate-200 hover:bg-slate-900/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {s.avatar && (
+                        <img
+                          src={getAvatarUrl(s.avatar)}
+                          alt=""
+                          className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-slate-800 shrink-0 border border-slate-700/60"
+                        />
+                      )}
+                      <span className="truncate text-left max-w-[85px] xs:max-w-[110px] sm:max-w-[140px] font-medium">
+                        {s.username}
+                      </span>
+                      {isLocal && (
+                        <span className="text-[9px] text-indigo-400 font-extrabold shrink-0">
+                          (You)
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`font-mono font-bold shrink-0 text-right ${
+                        s.turnScore > 0 ? 'text-emerald-400' : 'text-rose-500'
+                      }`}
+                    >
+                      {s.turnScore > 0 ? `+${s.turnScore}` : '0'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-2 flex flex-col gap-3">
 
@@ -464,6 +595,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
             onStrokesChange={setStrokes}
             onStrokeComplete={handleStrokeComplete}
           />
+          {renderCanvasOverlay()}
         </div>
 
         {/* Drawing Tools (Always shown right below canvas for the active drawer) */}
@@ -535,7 +667,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
         {/* Center Column: Drawing Area (6 cols on desktop) */}
         <div className="lg:col-span-6 flex flex-col gap-2.5 h-full">
           {/* HTML5 Canvas container with strict min-h-0 flex-1 */}
-          <div className="flex-1 w-full relative min-h-0">
+          <div className="flex-1 w-full relative min-h-0 rounded-2xl overflow-hidden border border-slate-800">
             <DrawingCanvas
               isDrawer={role === 'drawer'}
               drawerName={role === 'drawer' ? (username || 'You') : drawerName}
@@ -546,6 +678,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
               onStrokesChange={setStrokes}
               onStrokeComplete={handleStrokeComplete}
             />
+            {renderCanvasOverlay()}
           </div>
 
           {/* Drawing Tools (Visible only to drawer) */}
@@ -606,20 +739,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onLeaveGame }) => {
             <Sparkles className="w-4 h-4 text-amber-400" />
             <span>{drawerName} is choosing a word...</span>
             <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-500/20 text-white font-mono">{timeLeft}s</span>
-          </div>
-        </div>
-      )}
-
-      {/* Turn Ended Alert Announcement */}
-      {turnEndInfo && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce max-w-[90vw]">
-          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-amber-500 text-slate-950 font-heading font-black shadow-2xl shadow-amber-500/40 border border-amber-300">
-            <Trophy className="w-5 h-5 text-slate-950 shrink-0" />
-            <div className="text-xs sm:text-sm">
-              <span>Turn Ended! The word was: </span>
-              <span className="underline decoration-wavy uppercase">{turnEndInfo.word}</span>
-              <span className="text-xs font-normal ml-2 opacity-90">({turnEndInfo.reason})</span>
-            </div>
           </div>
         </div>
       )}

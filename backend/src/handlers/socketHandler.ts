@@ -735,11 +735,13 @@ export function registerSocketHandlers(io: Server) {
         if (normGuess === normTarget) {
           sender.hasGuessed = true;
           const pointsEarned = calculateGuessScore(room.timeLeft, room.settings.drawTime);
+          sender.turnScore = (sender.turnScore || 0) + pointsEarned;
           sender.score += pointsEarned;
 
           // Bonus for drawer
           const drawer = room.currentDrawerId ? room.players.get(room.currentDrawerId) : null;
           if (drawer) {
+            drawer.turnScore = (drawer.turnScore || 0) + 50;
             drawer.score += 50;
           }
 

@@ -295,6 +295,25 @@ DoodleSync is a modern, real-time multiplayer drawing and guessing platform insp
 
 ---
 
+### Phase 13: Skribbl.io In-Canvas End-of-Turn Score Summary & Round Transition Banners ✅
+- **📊 Authentic Skribbl.io In-Canvas End-of-Turn Score Results**
+  - **Direct Canvas Placement**: Replaces external bouncing toasts with a centered, non-intrusive backdrop overlay rendered directly inside the drawing canvas viewport on both mobile and desktop.
+  - **Word & Reason Reveal**: Prominently displays the concluded secret word (*"The word was [WORD]"*) in gold/amber styling alongside the conclusion reason (*"Time is up!"* or *"Everyone guessed the word!"*).
+  - **Live Turn Points Leaderboard**: Renders an authentic two-column score table listing every participant's points gained during the specific turn:
+    - Players who guessed the word receive emerald green score badges (e.g., `+300`, `+270`, `+240`).
+    - Players who did not guess display a red `0` (matching Skribbl.io).
+    - Includes player's circular avatar image for quick visual recognition.
+    - Local user is highlighted with a distinct `(You)` badge.
+  - **📱 Adaptive 8-Player Layout & Zero Mobile Clipping**: Automatically pivots to a balanced 2-column grid when room has more than 4 players, allowing 8 players (4 per column) to fit smoothly within short mobile canvas viewports (~190px) without vertical clipping or awkward scrolling, and expands elegantly on wide desktop canvases.
+  - **4.5-Second Reveal Window**: Provides an optimal reveal duration matching Skribbl.io pacing before transitioning to the next drawer.
+- **🔄 Skribbl.io Centered Round Transition Banner ("Round X of Y")**
+  - **Inter-Round Celebration**: When all players finish their turn in a round, the game transitions seamlessly into the next round (e.g., Round 1 $\to$ Round 2).
+  - **Prominent Canvas Announcement**: Displays a bold centered card announcing `Round 2` (*"Round 2 of 3"*) with an celebratory audio chime.
+  - **Pacing Buffer**: Pauses for 2.5 seconds allowing all participants to recognize the round advancement before the new drawer is presented with word choices.
+  - **Authoritative Turn Scoring**: Backend tracks dedicated `turnScore` per player, resetting at each turn's onset while continuously accumulating overall match scores.
+
+---
+
 ## 🛠️ Tech Stack
 
 ### Frontend

@@ -75,6 +75,7 @@ export function startNextTurn(io: Server, roomId: string) {
           p.isDrawing = false;
           p.hasGuessed = false;
           p.score = 0;
+          p.turnScore = 0;
         });
 
         io.to(roomId).emit('room:data', serializeRoom(r));
@@ -90,10 +91,40 @@ export function startNextTurn(io: Server, roomId: string) {
       return;
     }
 
-    // Otherwise, advance to next round
+    // Advance to next round!
     room.drawerIndex = 0;
     room.currentRound += 1;
+
+    // Broadcast new round announcement (Skribbl.io: "Round 2 of 3")
+    io.to(roomId).emit('round:change', {
+      round: room.currentRound,
+      totalRounds: room.totalRounds,
+    });
+    io.to(roomId).emit('room:data', serializeRoom(room));
+    io.to(roomId).emit('chat:message', {
+      id: `sys-${Date.now()}`,
+      senderName: 'System',
+      text: `🔄 Round ${room.currentRound} of ${room.totalRounds} has started!`,
+      type: 'system',
+      timestamp: Date.now(),
+    });
+
+    // Pause 2.5 seconds to display centered "Round X of Y" banner, then start drawer's turn
+    setTimeout(() => {
+      proceedWithDrawerTurn(io, roomId);
+    }, 2500);
+    return;
   }
+
+  proceedWithDrawerTurn(io, roomId);
+}
+
+/**
+ * Handle drawer turn preparation and word choices selection
+ */
+function proceedWithDrawerTurn(io: Server, roomId: string) {
+  const room = rooms.get(roomId);
+  if (!room || room.status === 'game_end') return;
 
   // Determine current drawer
   const nextDrawerId = room.drawerOrder[room.drawerIndex];
@@ -104,6 +135,7 @@ export function startNextTurn(io: Server, roomId: string) {
   room.players.forEach((p) => {
     p.isDrawing = p.id === nextDrawerId;
     p.hasGuessed = false;
+    p.turnScore = 0;
   });
 
   const configuredWordCount = room.settings.wordCount || 3;
@@ -235,8 +267,8 @@ export function beginDrawingTurn(io: Server, roomId: string, word: string) {
   const announcementText = isHiddenMode
     ? `🎨 Round ${room.currentRound}: Start drawing! (Hidden Word — Guess from drawing alone!)`
     : isCombinationMode
-    ? `🎨 Round ${room.currentRound}: Start drawing! (Combination Mode — Two words combined)`
-    : `🎨 Round ${room.currentRound}: Start drawing! (${Array.from(room.currentWord.replace(/\s+/g, '')).length} letters)`;
+      ? `🎨 Round ${room.currentRound}: Start drawing! (Combination Mode — Two words combined)`
+      : `🎨 Round ${room.currentRound}: Start drawing! (${Array.from(room.currentWord.replace(/\s+/g, '')).length} letters)`;
 
   io.to(roomId).emit('chat:message', {
     id: `sys-${Date.now()}`,
@@ -339,10 +371,23 @@ export function endTurn(io: Server, roomId: string, reason: string) {
     formattedReason = 'Time is up! Nobody guessed the word.';
   }
 
+  const scores = Array.from(room.players.values())
+    .map((p) => ({
+      id: p.id,
+      username: p.username,
+      avatar: p.avatar,
+      turnScore: p.turnScore ?? 0,
+      totalScore: p.score ?? 0,
+      hasGuessed: Boolean(p.hasGuessed),
+      isDrawing: Boolean(p.isDrawing),
+    }))
+    .sort((a, b) => (b.turnScore || 0) - (a.turnScore || 0));
+
   io.to(roomId).emit('turn:ended', {
     word: room.currentWord,
     reason: formattedReason,
     players: Array.from(room.players.values()).map(serializePlayer),
+    scores,
   });
 
   io.to(roomId).emit('chat:message', {
@@ -353,8 +398,8 @@ export function endTurn(io: Server, roomId: string, reason: string) {
     timestamp: Date.now(),
   });
 
-  // Brief reveal delay (4 seconds) before initiating next turn
+  // Brief reveal delay (4.5 seconds) before initiating next turn so players view the score summary
   setTimeout(() => {
     startNextTurn(io, roomId);
-  }, 4000);
+  }, 4500);
 }

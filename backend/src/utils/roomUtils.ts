@@ -38,6 +38,7 @@ export function serializePlayer(p: any) {
     username: p.username,
     avatar: p.avatar,
     score: p.score ?? 0,
+    turnScore: p.turnScore ?? 0,
     isHost: Boolean(p.isHost),
     isReady: Boolean(p.isReady),
     isDrawing: Boolean(p.isDrawing),

@@ -71,6 +71,7 @@ export interface GamePlayer {
   username: string;
   avatar: AvatarConfig;
   score: number;
+  turnScore?: number;
   hasGuessed: boolean;
   isDrawing: boolean;
   isHost?: boolean;

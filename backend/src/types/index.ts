@@ -15,6 +15,7 @@ export interface Player {
   isDrawing: boolean;
   hasGuessed: boolean;
   joinedAt: number;
+  turnScore?: number;
   isDisconnected?: boolean;
   disconnectTimeout?: NodeJS.Timeout;
 }
